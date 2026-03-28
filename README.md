@@ -51,7 +51,7 @@ It also swaps the default ESP32 BLE library for [NimBLE-Arduino (h2zero)](https:
 | 1 | `+` | repeat `+` |
 | 2 | `-` | repeat `-` |
 | 3 | `n` | `d` |
-| 4 | *(reserved — config trigger)* | enter config mode |
+| 4 | `c`/exit config mode | enter config mode |
 | 5 | Up Arrow | repeat Up Arrow |
 | 6 | Left Arrow | repeat Left Arrow |
 | 7 | Right Arrow | repeat Right Arrow |
