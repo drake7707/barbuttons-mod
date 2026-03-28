@@ -497,10 +497,8 @@ Tap Button 4 on the device to exit without saving.</p>
 </form>
 <hr style="margin:24px 0">
 <h3>Reset to Defaults</h3>
-<p class="sub">Restore the default keymap and BLE device name. All custom settings will be lost.</p>
-<form method="POST" action="/resetdefaults" id="resetFrm">
-<input type="submit" class="save danger" value="Reset to Defaults &amp; Reboot" id="resetBtn">
-</form>
+<p class="sub">Fill in the default keymap and BLE device name. Save &amp; Reboot to apply.</p>
+<button type="button" class="save danger" onclick="resetToDefaults()">Reset to Defaults</button>
 <script>
 document.getElementById('otaFrm').onsubmit=function(){
   var b=document.getElementById('otaBtn');
@@ -512,11 +510,17 @@ document.getElementById('bondFrm').onsubmit=function(){
   var b=document.getElementById('bondBtn');
   b.value='Clearing\u2026';b.disabled=true;
 };
-document.getElementById('resetFrm').onsubmit=function(){
-  if(!confirm('Reset to defaults?\nThis will restore the default keymap and BLE device name.\nThe device will reboot.')) return false;
-  var b=document.getElementById('resetBtn');
-  b.value='Resetting\u2026';b.disabled=true;
-};
+var DS=[DEFAULTSHORT];
+var DL=[DEFAULTLONG];
+function resetToDefaults(){
+  var rows=document.getElementById('rows').rows;
+  for(var i=0;i<8;i++){
+    var sels=rows[i].querySelectorAll('select');
+    if(sels[0]) sels[0].value=DS[i];
+    if(sels[1]) sels[1].value=DL[i];
+  }
+  document.getElementById('blename').value=DEFAULTBLENAME;
+}
 // Key options: [code, label]
 var K=[
   [43,'+'],[45,'-'],[42,'*'],[47,'/'],[61,'='],
@@ -585,6 +589,15 @@ void handle_root() {
   }
   html.replace("SHORTVALS", sv);
   html.replace("LONGVALS",  lv);
+  // Build default keymap lists for the JS reset function
+  String dsv, dlv;
+  for (int i = 0; i < 8; i++) {
+    if (i) { dsv += ','; dlv += ','; }
+    dsv += String(DEFAULT_SHORT[i]);
+    dlv += String(DEFAULT_LONG[i]);
+  }
+  html.replace("DEFAULTSHORT", dsv);
+  html.replace("DEFAULTLONG",  dlv);
   // Escape BLE name for safe use in an HTML attribute value
   String bn;
   for (int i = 0; ble_name[i]; i++) {
@@ -596,6 +609,15 @@ void handle_root() {
     else               bn += c;
   }
   html.replace("BLENAME", bn);
+  // Escape default BLE name for safe embedding as a JS string literal
+  String dbn;
+  for (int i = 0; DEFAULT_BLE_NAME[i]; i++) {
+    char c = DEFAULT_BLE_NAME[i];
+    if      (c == '\\') dbn += "\\\\";
+    else if (c == '\'') dbn += "\\'";
+    else                dbn += c;
+  }
+  html.replace("DEFAULTBLENAME", "'" + dbn + "'");
   server.send(200, "text/html", html);
 }
 
@@ -648,31 +670,6 @@ void handle_clear_bonds() {
     "<head><meta name='viewport' content='width=device-width,initial-scale=1'></head>"
     "<body style='font-family:sans-serif;max-width:400px;margin:60px auto;text-align:center'>"
     "<h2>&#10003; Bonds cleared!</h2><p>Rebooting&hellip; Re-pair your phone when the device is discoverable.</p>"
-    "</body></html>");
-
-  flash_led(3, 80, 80);
-  delay(800);
-  ESP.restart();
-}
-
-void handle_reset_defaults() {
-  // Restore default keymap
-  for (int i = 0; i < 8; i++) {
-    short_keys[i] = DEFAULT_SHORT[i];
-    long_keys[i]  = DEFAULT_LONG[i];
-  }
-  save_keymap();
-
-  // Restore default BLE name
-  strncpy(ble_name, DEFAULT_BLE_NAME, sizeof(ble_name));
-  ble_name[sizeof(ble_name) - 1] = '\0';
-  save_ble_name();
-
-  server.send(200, "text/html",
-    "<!DOCTYPE html><html>"
-    "<head><meta name='viewport' content='width=device-width,initial-scale=1'></head>"
-    "<body style='font-family:sans-serif;max-width:400px;margin:60px auto;text-align:center'>"
-    "<h2>&#10003; Reset to defaults!</h2><p>Rebooting&hellip;</p>"
     "</body></html>");
 
   flash_led(3, 80, 80);
@@ -745,7 +742,6 @@ void start_config_ap() {
   server.on("/",            HTTP_GET,  handle_root);
   server.on("/save",        HTTP_POST, handle_save);
   server.on("/clearbonds",  HTTP_POST, handle_clear_bonds);
-  server.on("/resetdefaults", HTTP_POST, handle_reset_defaults);
   server.on("/update",      HTTP_POST, handle_ota_finish, handle_ota_upload);
   server.begin();
 
