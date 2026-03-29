@@ -10,7 +10,6 @@ Two types of changes are covered: firmware and physical casing.
 ### Overview
 
 Based on the original BarButtons v1 firmware, this version replaces the STA-based OTA workflow with a **self-hosted WiFi Access Point** and a **browser-based configuration interface**.
-It also swaps the default ESP32 BLE library for [NimBLE-Arduino (h2zero)](https://github.com/h2zero/NimBLE-Arduino), which persists CCCD notification subscriptions per bonded peer in NVS — meaning keystrokes keep working after a device reset without re-pairing.
 
 ### Features
 
@@ -20,7 +19,6 @@ It also swaps the default ESP32 BLE library for [NimBLE-Arduino (h2zero)](https:
 | **Web keymap editor** | Browser UI at `http://192.168.4.1` to configure short and long press actions for all 8 buttons |
 | **NVS persistence** | Keymap stored in flash via the `Preferences` library; survives reboots and firmware updates |
 | **OTA firmware update** | Upload a compiled `.bin` directly from the browser; device reboots automatically |
-| **BLE bond management** | "Clear BLE Bonds" button in the web UI; safe to use when the device fails to auto-reconnect |
 | **NimBLE BLE keyboard** | HID keyboard over BLE with secure bonding (Secure Connections, Just Works); CCCD state persisted per peer |
 | **LED status indicator** | Blink pattern varies by state — see table below |
 
