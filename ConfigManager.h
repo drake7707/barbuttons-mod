@@ -154,7 +154,7 @@ for (var i = 0; i < 8; i++) {
   tbody.appendChild(tr);
 }
 </script>
-<footer>BarButtonsMod vFWVER &mdash; by <a href="https://github.com/drake7707/" target="_blank" rel="noopener">Drakarah</a> &mdash; <a href="https://github.com/drake7707/" target="_blank" rel="noopener">github.com/drake7707</a></footer>
+<footer>BarButtonsMod vFWVER &mdash; by <a href="https://github.com/drake7707/" target="_blank" rel="noopener">Drakarah</a> &mdash; <a href="https://github.com/drake7707/" target="_blank" rel="noopener">github.com/drake7707</a>. Derived from <a href='https://jaxeadv.com/barbuttons/'>BarButtons by JADXAdv</a></footer>
 </body>
 </html>
 )rawliteral";
