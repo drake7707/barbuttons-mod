@@ -258,13 +258,6 @@ public:
     return -1;
   }
 
-  // A button fires on key-down (instant) when its long-press mode is auto-repeat.
-  bool isKeyInstant(char key) const {
-    int idx = btnIndex(key);
-    if (idx < 0) return false;
-    return _long[idx] == 0; // 0 = repeat short key → instant fire
-  }
-
   // ---------------------------------------------------------------------------
   // AP / WebServer — config mode
   // ---------------------------------------------------------------------------
