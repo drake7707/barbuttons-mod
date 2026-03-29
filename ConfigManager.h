@@ -16,7 +16,7 @@ extern const int DEBUG;
 // ---------------------------------------------------------------------------
 
 #define BLE_NAME_MAX_LEN 32
-const char DEFAULT_BLE_NAME[] = "BarButtons";
+const char DEFAULT_BLE_NAME[] = "BarButtonsMod";
 
 // ---------------------------------------------------------------------------
 // Config web page  (stored in program flash, not RAM)
@@ -28,7 +28,7 @@ const char CONFIG_HTML[] PROGMEM = R"rawliteral(
 <html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BarButtons Keymap</title>
+<title>BarButtons Mod Keymap</title>
 <style>
 body{font-family:sans-serif;max-width:740px;margin:20px auto;padding:0 12px}
 h2{color:#2c2c2c;margin-bottom:4px}
@@ -49,8 +49,8 @@ select{width:100%;box-sizing:border-box;padding:3px}
 </style>
 </head>
 <body>
-<h2>BarButtons Keymap Config</h2>
-<p class="sub">Firmware vFWVER &mdash; AP configuration mode</p>
+<h2>BarButtons Mod Keymap Config</h2>
+<p class="sub">Firmware vFWVER by Drakarah &mdash; AP configuration mode</p>
 <form method="POST" action="/save">
 <table>
 <thead>
@@ -64,7 +64,7 @@ Tap Button 4 on the device to exit without saving.</p>
 <label for="blename">BLE Device Name:</label>
 <input type="text" id="blename" name="blename" value="BLENAME"
        maxlength="32" pattern="[ -~]+" required
-       placeholder="BarButtons">
+       placeholder="BarButtonsMod">
 <p class="hint">1&#8211;32 printable ASCII characters &mdash; shown in the Bluetooth pairing dialog.</p>
 </div>
 <input type="submit" class="save" value="Save &amp; Reboot">
@@ -311,7 +311,7 @@ private:
 
   uint8_t _short[8] = {};
   uint8_t _long[8]  = {};
-  char    _bleName[BLE_NAME_MAX_LEN + 1] = "BarButtons";
+  char    _bleName[BLE_NAME_MAX_LEN + 1] = "BarButtonsMod";
 
   Preferences _prefs;
   WebServer   _server{80};
