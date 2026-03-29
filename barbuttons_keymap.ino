@@ -55,7 +55,8 @@ ButtonManager    buttonManager;
 // ---------------------------------------------------------------------------
 // Keypad state tracking
 // ---------------------------------------------------------------------------
-int last_keypad_state = IDLE;
+int  last_keypad_state = IDLE;
+bool key4_is_held      = false; // true while key '4' is in HOLD (for combo detection)
 
 // ---------------------------------------------------------------------------
 // Config mode — starts the AP, runs the client loop, then restores BLE
@@ -154,6 +155,15 @@ void send_long_press(KeypadEvent key) {
 }
 
 // ---------------------------------------------------------------------------
+// Key combo handler — hold '4' then press '3'
+// Add specific internal action inside this function.
+// ---------------------------------------------------------------------------
+void handle_key_combo_4_3() {
+  if (DEBUG) Serial.println("Key combo: hold 4 + press 3");
+  ledManager.flashLed(3, 100, 50);
+}
+
+// ---------------------------------------------------------------------------
 // Keypad event handler — registered with ButtonManager; ties all managers
 // ---------------------------------------------------------------------------
 void keypad_handler(KeypadEvent key) {
@@ -165,15 +175,25 @@ void keypad_handler(KeypadEvent key) {
 
     case PRESSED:
       last_keypad_state = PRESSED;
+      // Detect combo: '3' pressed while '4' is held.
+      // The combo takes priority over normal key handling for this press.
+      // As long as '4' remains held, pressing '3' again will retrigger the combo.
+      if (key == '3' && key4_is_held) {
+        handle_key_combo_4_3();
+        last_keypad_state = IDLE; // Prevent normal short press on release
+        break;
+      }
       if (configManager.isKeyInstant(key) && status != APP_CONFIG) send_short_press(key);
       break;
 
     case HOLD:
       last_keypad_state = HOLD;
+      if (key == '4') key4_is_held = true;
       send_long_press(key);
       break;
 
     case RELEASED:
+      if (key == '4') key4_is_held = false;
       // Tap of '4' during config mode exits AP mode without saving
       if (status == APP_CONFIG && key == '4') {
         configManager.setExitRequested(true);
@@ -196,6 +216,7 @@ void keypad_handler(KeypadEvent key) {
 
     case IDLE:
       last_keypad_state = IDLE;
+      key4_is_held = false; // Defensive reset: ensure flag is cleared when all keys are idle
 
       if (status == APP_CONNECTED || status == APP_CONNECTED_BLINK) {
         ledManager.resetLedState();
