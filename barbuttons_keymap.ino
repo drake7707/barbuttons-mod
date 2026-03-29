@@ -31,6 +31,11 @@
 const int DEBUG = 1;  // Set to 1 only when Serial monitor is attached
 
 // ---------------------------------------------------------------------------
+// Firmware version — shown in the web config UI
+// ---------------------------------------------------------------------------
+const char FIRMWARE_VERSION[] = "1.0.0";
+
+// ---------------------------------------------------------------------------
 // Manager includes
 // ---------------------------------------------------------------------------
 #include "HardwareConfig.h"
@@ -211,7 +216,7 @@ void setup() {
 
   ledManager.begin(LED_PIN);
 
-  configManager.begin(&ledManager);
+  configManager.begin(&ledManager, FIRMWARE_VERSION);
   configManager.loadKeymap();
   configManager.loadBleName();
 

@@ -50,7 +50,7 @@ select{width:100%;box-sizing:border-box;padding:3px}
 </head>
 <body>
 <h2>BarButtons Keymap Config</h2>
-<p class="sub">Firmware v2 &mdash; AP configuration mode</p>
+<p class="sub">Firmware vFWVER &mdash; AP configuration mode</p>
 <form method="POST" action="/save">
 <table>
 <thead>
@@ -162,9 +162,12 @@ public:
   static const uint8_t DEFAULT_SHORT[8];
   static const uint8_t DEFAULT_LONG[8];
 
-  // Inject the StatusLedManager so web handlers can signal progress via LED
-  void begin(StatusLedManager* led) {
+  // Inject the StatusLedManager so web handlers can signal progress via LED,
+  // and the firmware version string to display in the web config UI.
+  void begin(StatusLedManager* led, const char* firmwareVersion) {
     _led = led;
+    strncpy(_firmwareVersion, firmwareVersion, sizeof(_firmwareVersion) - 1);
+    _firmwareVersion[sizeof(_firmwareVersion) - 1] = '\0';
   }
 
   // ---------------------------------------------------------------------------
@@ -302,8 +305,9 @@ public:
   void setExitRequested(bool v) { _exitConfig = v; }
 
 private:
-  StatusLedManager* _led       = nullptr;
-  bool              _exitConfig = false;
+  StatusLedManager* _led             = nullptr;
+  bool              _exitConfig       = false;
+  char              _firmwareVersion[32] = {};
 
   uint8_t _short[8] = {};
   uint8_t _long[8]  = {};
@@ -360,6 +364,8 @@ private:
       else                dbn += c;
     }
     html.replace("DEFAULTBLENAME", "'" + dbn + "'");
+
+    html.replace("FWVER", String(_firmwareVersion));
 
     _server.send(200, "text/html", html);
   }
