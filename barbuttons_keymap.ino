@@ -171,7 +171,11 @@ void keypad_handler(KeypadEvent key) {
 
   AppStatus status = ledManager.getStatus();
 
-  switch (buttonManager.getState()) {
+  // Use the state of the specific button that triggered this event.
+  // getState() always reflects key[0] (the oldest active key), so when button 3
+  // is pressed while button 4 is in HOLD, getState() would return HOLD and the
+  // PRESSED case — where combo detection lives — would never be reached.
+  switch (buttonManager.getButtonState(key)) {
 
     case PRESSED:
       last_button_state = PRESSED;
@@ -215,13 +219,21 @@ void keypad_handler(KeypadEvent key) {
       break;
 
     case IDLE:
-      last_button_state = IDLE;
-      button4_is_held = false; // Defensive reset: ensure flag is cleared when all buttons are idle
+      // Only reset button4_is_held when button 4 itself goes idle.
+      if (key == '4') button4_is_held = false;
 
-      if (status == APP_CONNECTED || status == APP_CONNECTED_BLINK) {
-        ledManager.resetLedState();
+      // Only update global state / LED / BLE when the whole keypad is idle
+      // (i.e. key[0] — the oldest tracked button — has also gone idle).
+      // This prevents button 3 going idle during a combo from prematurely
+      // resetting state while button 4 is still held.
+      if (buttonManager.getState() == IDLE) {
+        last_button_state = IDLE;
+
+        if (status == APP_CONNECTED || status == APP_CONNECTED_BLINK) {
+          ledManager.resetLedState();
+        }
+        bleManager.releaseAll();
       }
-      bleManager.releaseAll();
       break;
   }
 }

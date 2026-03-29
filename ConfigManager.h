@@ -259,9 +259,12 @@ public:
   }
 
   // A button fires on key-down (instant) when its long-press mode is auto-repeat.
+  // Button 4 (idx 3) is excluded: its long-press slot is reserved for config mode,
+  // so it must never be instant-fired on key-down regardless of the stored value.
   bool isKeyInstant(char key) const {
     int idx = btnIndex(key);
     if (idx < 0) return false;
+    if (idx == 3) return false; // button 4 long-press is reserved; always non-instant
     return _long[idx] == 0; // 0 = repeat short key → instant fire
   }
 

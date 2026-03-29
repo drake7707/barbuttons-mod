@@ -33,8 +33,22 @@ public:
   // Poll the keypad — must be called every loop iteration
   char getButton() { return _keypad.getKey(); }
 
-  // Current keypad state (IDLE, PRESSED, HOLD, RELEASED)
+  // Current keypad state (IDLE, PRESSED, HOLD, RELEASED) — state of key[0]
   KeyState getState() { return _keypad.getState(); }
+
+  // Return the state of a specific button character by searching all active key
+  // slots.  This is needed for multi-key scenarios (e.g. hold '4' + press '3')
+  // where getState() always reflects key[0] (the first-pressed button) rather
+  // than the button that just triggered the event listener.
+  // Returns IDLE if the button is not currently tracked.
+  KeyState getButtonState(char btn) {
+    for (int i = 0; i < LIST_MAX; i++) {
+      if (_keypad.key[i].kchar == btn) {
+        return _keypad.key[i].kstate;
+      }
+    }
+    return IDLE;
+  }
 
   // Wait while the button remains HOLD for up to hold_time ms.
   // Returns true if the button is still held at the end of the wait.
