@@ -298,7 +298,12 @@ private:
 // ---------------------------------------------------------------------------
 // BLE keyboard instance
 // ---------------------------------------------------------------------------
-CustomBLEKeyboard bleKeyboard("BarButtons", "JaxeADV", 100);
+// BLE device name persisted in NVS; loaded before bleKeyboard.begin() in setup().
+#define BLE_NAME_MAX_LEN 32
+const char DEFAULT_BLE_NAME[] = "BarButtons";
+char ble_name[BLE_NAME_MAX_LEN + 1] = "BarButtons"; // initialised to DEFAULT_BLE_NAME; overwritten by load_ble_name()
+
+CustomBLEKeyboard bleKeyboard(ble_name, "JaxeADV", 100);
 
 // ---------------------------------------------------------------------------
 // Keypad layout  (unchanged from original)
@@ -402,6 +407,24 @@ void save_keymap() {
 }
 
 // ---------------------------------------------------------------------------
+// NVS — load / save BLE name
+// ---------------------------------------------------------------------------
+void load_ble_name() {
+  prefs.begin("config", /*readOnly=*/true);
+  String saved = prefs.getString("blename", DEFAULT_BLE_NAME);
+  saved.toCharArray(ble_name, sizeof(ble_name));
+  prefs.end();
+  if (DEBUG) Serial.printf("BLE name loaded: %s\n", ble_name);
+}
+
+void save_ble_name() {
+  prefs.begin("config", /*readOnly=*/false);
+  prefs.putString("blename", ble_name);
+  prefs.end();
+  if (DEBUG) Serial.printf("BLE name saved: %s\n", ble_name);
+}
+
+// ---------------------------------------------------------------------------
 // AP credentials
 // ---------------------------------------------------------------------------
 const char* AP_SSID = "BarButtons-Config";
@@ -410,8 +433,8 @@ const char* AP_PSWD = "barbuttons";
 // ---------------------------------------------------------------------------
 // Config web page  (stored in program flash, not RAM)
 // ---------------------------------------------------------------------------
-// The server replaces the placeholders SHORTVALS and LONGVALS with
-// comma-separated decimal key code lists before sending.
+// The server replaces the placeholders SHORTVALS, LONGVALS, and BLENAME with
+// the current keymap values and BLE device name before sending.
 // ---------------------------------------------------------------------------
 const char CONFIG_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -432,6 +455,10 @@ select{width:100%;box-sizing:border-box;padding:3px}
 .save:hover{background:#1a5cb0}
 .hint{color:#888;font-size:.82em;margin-top:6px}
 .danger{background:#c0392b}.danger:hover{background:#962d22}
+.field{margin-top:14px}
+.field label{font-weight:600;display:block;margin-bottom:4px}
+.field input[type=text]{width:100%;max-width:320px;box-sizing:border-box;
+  padding:5px 8px;font-size:1em;border:1px solid #ccc;border-radius:3px}
 </style>
 </head>
 <body>
@@ -444,9 +471,16 @@ select{width:100%;box-sizing:border-box;padding:3px}
 </thead>
 <tbody id="rows"></tbody>
 </table>
-<input type="submit" class="save" value="Save &amp; Reboot">
 <p class="hint">Button 4 long-press = always enters this config mode (not remappable).<br>
 Tap Button 4 on the device to exit without saving.</p>
+<div class="field">
+<label for="blename">BLE Device Name:</label>
+<input type="text" id="blename" name="blename" value="BLENAME"
+       maxlength="32" pattern="[ -~]+" required
+       placeholder="BarButtons">
+<p class="hint">1&#8211;32 printable ASCII characters &mdash; shown in the Bluetooth pairing dialog.</p>
+</div>
+<input type="submit" class="save" value="Save &amp; Reboot">
 </form>
 <hr style="margin:24px 0">
 <h3>Firmware Update</h3>
@@ -461,6 +495,10 @@ Tap Button 4 on the device to exit without saving.</p>
 <form method="POST" action="/clearbonds" id="bondFrm">
 <input type="submit" class="save danger" value="Clear BLE Bonds &amp; Reboot" id="bondBtn">
 </form>
+<hr style="margin:24px 0">
+<h3>Reset to Defaults</h3>
+<p class="sub">Fill in the default keymap and BLE device name. Save &amp; Reboot to apply.</p>
+<button type="button" class="save danger" onclick="resetToDefaults()">Reset to Defaults</button>
 <script>
 document.getElementById('otaFrm').onsubmit=function(){
   var b=document.getElementById('otaBtn');
@@ -472,6 +510,17 @@ document.getElementById('bondFrm').onsubmit=function(){
   var b=document.getElementById('bondBtn');
   b.value='Clearing\u2026';b.disabled=true;
 };
+var DS=[DEFAULTSHORT];
+var DL=[DEFAULTLONG];
+function resetToDefaults(){
+  var rows=document.getElementById('rows').rows;
+  for(var i=0;i<8;i++){
+    var sels=rows[i].querySelectorAll('select');
+    if(sels[0]) sels[0].value=DS[i];
+    if(sels[1]) sels[1].value=DL[i];
+  }
+  document.getElementById('blename').value=DEFAULTBLENAME;
+}
 // Key options: [code, label]
 var K=[
   [43,'+'],[45,'-'],[42,'*'],[47,'/'],[61,'='],
@@ -540,6 +589,35 @@ void handle_root() {
   }
   html.replace("SHORTVALS", sv);
   html.replace("LONGVALS",  lv);
+  // Build default keymap lists for the JS reset function
+  String dsv, dlv;
+  for (int i = 0; i < 8; i++) {
+    if (i) { dsv += ','; dlv += ','; }
+    dsv += String(DEFAULT_SHORT[i]);
+    dlv += String(DEFAULT_LONG[i]);
+  }
+  html.replace("DEFAULTSHORT", dsv);
+  html.replace("DEFAULTLONG",  dlv);
+  // Escape BLE name for safe use in an HTML attribute value
+  String bn;
+  for (int i = 0; ble_name[i]; i++) {
+    char c = ble_name[i];
+    if      (c == '&') bn += "&amp;";
+    else if (c == '"') bn += "&quot;";
+    else if (c == '<') bn += "&lt;";
+    else if (c == '>') bn += "&gt;";
+    else               bn += c;
+  }
+  html.replace("BLENAME", bn);
+  // Escape default BLE name for safe embedding as a JS string literal
+  String dbn;
+  for (int i = 0; DEFAULT_BLE_NAME[i]; i++) {
+    char c = DEFAULT_BLE_NAME[i];
+    if      (c == '\\') dbn += "\\\\";
+    else if (c == '\'') dbn += "\\'";
+    else                dbn += c;
+  }
+  html.replace("DEFAULTBLENAME", "'" + dbn + "'");
   server.send(200, "text/html", html);
 }
 
@@ -550,6 +628,22 @@ void handle_save() {
     if (server.hasArg("l" + si)) long_keys[i]  = (uint8_t)server.arg("l" + si).toInt();
   }
   save_keymap();
+
+  if (server.hasArg("blename")) {
+    String newName = server.arg("blename");
+    newName.trim();
+    // Validate: 1–32 printable ASCII characters
+    bool valid = newName.length() > 0 && newName.length() <= BLE_NAME_MAX_LEN;
+    if (valid) {
+      for (unsigned int j = 0; j < newName.length(); j++) {
+        if (newName[j] < 0x20 || newName[j] > 0x7E) { valid = false; break; }
+      }
+    }
+    if (valid) {
+      newName.toCharArray(ble_name, sizeof(ble_name));
+      save_ble_name();
+    }
+  }
 
   server.send(200, "text/html",
     "<!DOCTYPE html><html>"
@@ -852,6 +946,7 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
 
   load_keymap(); // Load from NVS (or fall back to defaults)
+  load_ble_name(); // Load BLE device name from NVS (or fall back to "BarButtons")
 
   bleKeyboard.begin();
 
