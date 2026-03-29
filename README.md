@@ -84,7 +84,9 @@ stateDiagram-v2
 > | **BT Connected** | Sends BLE key | Sends BLE key (if mapped) | `c` key | Enter config mode | Switch keymap |
 > | **Config Mode** | No BLE action | No BLE action | Exit config mode | — (not processed) | — (not processed) |
 
-### Button keymap defaults (Keymap 1)
+### Button keymap defaults
+
+These factory defaults apply to **all three keymap slots** on a fresh device (i.e. when no saved keymap exists in flash).
 
 | Button | Short press | Long press |
 |---|---|---|
