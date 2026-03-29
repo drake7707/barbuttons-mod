@@ -260,16 +260,32 @@ private:
 
   // Simulate a short left-button drag in direction (dx, dy).
   // Android map apps (Waze, Google Maps) interpret click+drag as pan.
+  //
+  // After releasing the button we immediately send a counter-movement report
+  // (same magnitude, opposite direction, button still up) to re-center the
+  // cursor.  Map apps only pan while the button is held, so the return trip is
+  // invisible to the application — but the cursor pointer ends up back where it
+  // started, meaning this function can be called repeatedly without the cursor
+  // ever drifting to a screen edge.
   void mouseDrag(int8_t dx, int8_t dy) {
     // Press left button with zero movement first so the host anchors the drag.
     _mouseRep = {0x01, 0, 0, 0};
     sendMouse();
-    // Apply movement while the button is still held.
+    // Apply movement while the button is still held — app pans the map.
     _mouseRep.x = dx;
     _mouseRep.y = dy;
     sendMouse();
-    delay(10);
     // Release the button.
+    _mouseRep = {0x00, 0, 0, 0};
+    sendMouse();
+    // Give the host a moment to finalise the drag gesture before the cursor
+    // returns, so the recenter movement is not confused with the pan.
+    delay(10);
+    // Re-center: move cursor back by the same amount without pressing any button.
+    // The button is already up so the app ignores this movement for panning; the
+    // cursor silently returns to its original screen position.
+    _mouseRep = {0x00, (int8_t)(-dx), (int8_t)(-dy), 0};
+    sendMouse();
     _mouseRep = {0x00, 0, 0, 0};
     sendMouse();
   }
