@@ -106,8 +106,10 @@ public:
       }
       str += " ";
     }
-    if(str != oldPrint)
+    if(str != oldPrint) {
+      Serial.print("BUTTON STATE: ");
       Serial.println(str);
+    }
     oldPrint = str;
   
   }
