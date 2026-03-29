@@ -33,15 +33,11 @@ const int DEBUG = 1;  // Set to 1 only when Serial monitor is attached
 // ---------------------------------------------------------------------------
 // Manager includes
 // ---------------------------------------------------------------------------
+#include "HardwareConfig.h"
 #include "StatusLedManager.h"
 #include "BLEManager.h"
 #include "ConfigManager.h"
 #include "ButtonManager.h"
-
-// ---------------------------------------------------------------------------
-// LED pin
-// ---------------------------------------------------------------------------
-const int LED_PIN = 6;
 
 // ---------------------------------------------------------------------------
 // Global manager instances

@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <Keypad.h>
+#include "HardwareConfig.h"
 
 extern const int DEBUG;
 
@@ -17,7 +18,11 @@ public:
   static const int LONG_PRESS_TIME_CONFIG     = 4500; // additional hold after first 500 ms = 5 s total
 
   ButtonManager()
-    : _keypad(makeKeymap(_keys), _rowPins, _colPins, ROWS, COLS) {}
+    : _keypad(makeKeymap(_keys), _rowPins, _colPins, ROWS, COLS)
+  {
+    memcpy(_rowPins, KEYPAD_ROW_PINS, sizeof(_rowPins));
+    memcpy(_colPins, KEYPAD_COL_PINS, sizeof(_colPins));
+  }
 
   // Register the keypad event handler and configure hold time
   void begin(void (*handler)(KeypadEvent)) {
@@ -65,8 +70,8 @@ private:
     {'3', '8', '9'}
   };
 
-  byte _rowPins[COLS] = {2, 1, 0};
-  byte _colPins[ROWS] = {3, 4, 5};
+  byte _rowPins[ROWS] = {};
+  byte _colPins[COLS] = {};
 
   Keypad _keypad;
 };
