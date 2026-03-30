@@ -17,7 +17,8 @@ Based on the original BarButtons v1 firmware, this version replaces the STA-base
 |---|---|
 | **AP config mode** | Starts a WiFi AP (`BarButtons-Config` / `barbuttons`) on demand |
 | **Web keymap editor** | Browser UI at `http://192.168.4.1` to configure short and long press actions for all 8 buttons |
-| **NVS persistence** | Keymap stored in flash via the `Preferences` library; survives reboots and firmware updates |
+| **Multiple keymaps** | Three independent keymap slots switchable on-device via Button 4 combos; active slot persisted across reboots |
+| **NVS persistence** | All settings (keymaps, active slot, BLE name) stored in flash via the `Preferences` library; survive reboots and firmware updates |
 | **OTA firmware update** | Upload a compiled `.bin` directly from the browser; device reboots automatically |
 | **NimBLE BLE keyboard** | HID keyboard over BLE with secure bonding (Secure Connections, Just Works); CCCD state persisted per peer |
 | **LED status indicator** | Blink pattern varies by state — see table below |
@@ -35,14 +36,57 @@ Based on the original BarButtons v1 firmware, this version replaces the STA-base
 1. **Hold Button 4 for ~5 seconds** (LED starts flashing rapidly).
 2. Connect to WiFi SSID **`BarButtons-Config`**, password **`barbuttons`**.
 3. Open **`http://192.168.4.1`** in a browser.
-4. **Keymap tab** — set Short Press / Long Press action per button, then click **Save & Reboot**.
+4. **Keymap tab** — set Short Press / Long Press action per button for any of the three keymap slots, then click **Save & Reboot**.
 5. **Firmware tab** — choose a `.bin` and click **Flash Firmware** for OTA update.
 6. **BLE Bonds tab** — click **Clear BLE Bonds & Reboot** if the device no longer auto-connects.
 7. To exit config mode **without** any changes, tap Button 4 on the device.
 
 > **Note:** Button 4 long-press is reserved as the config trigger and cannot be remapped.
 
+### Multiple keymaps
+
+The firmware supports three independent keymap slots.  Each slot has its own Short Press and Long Press assignment for all 8 buttons.  All three slots are edited together in the web config UI and are saved to flash at the same time.
+
+**Switching keymaps on-device (no config mode required):**
+
+| Combo | Action |
+|---|---|
+| Hold Button 4, then press Button 1 | Switch to Keymap 1 |
+| Hold Button 4, then press Button 2 | Switch to Keymap 2 |
+| Hold Button 4, then press Button 3 | Switch to Keymap 3 |
+
+After switching, the LED flashes **1, 2, or 3 times** to confirm which keymap is now active.  The selection is saved to flash immediately and survives reboots.
+
+### Application state diagram
+
+```mermaid
+stateDiagram-v2
+    [*] --> BT_Disconnected : power on / boot
+
+    BT_Disconnected : BT Disconnected\n(LED slow blink 500/500 ms)
+    BT_Connected    : BT Connected\n(LED off; brief flash on keypress)
+    Config_Mode     : Config Mode\n(WiFi AP active, LED fast blink 100/3000 ms)
+
+    BT_Disconnected --> BT_Connected    : host connects via BLE
+    BT_Connected    --> BT_Disconnected : host disconnects
+
+    BT_Disconnected --> Config_Mode     : Button 4 held ≥ 5 s
+    BT_Connected    --> Config_Mode     : Button 4 held ≥ 5 s
+
+    Config_Mode --> BT_Disconnected : tap Button 4 (exit without save)\nor Save & Reboot web action\nor Clear Bonds & Reboot web action\nor Flash Firmware OTA web action
+```
+
+> **Key behaviours by state**
+>
+> | State | Short press (btns 1–3, 5–8) | Long press (btns 1–3, 5–8) | Button 4 short press | Button 4 long press | Combo 4+1/4+2/4+3 |
+> |---|---|---|---|---|---|
+> | **BT Disconnected** | Sends BLE key (silently dropped if host not yet connected) | Sends BLE key (if mapped; silently dropped if not connected) | `c` key | Enter config mode | Switch keymap |
+> | **BT Connected** | Sends BLE key | Sends BLE key (if mapped) | `c` key | Enter config mode | Switch keymap |
+> | **Config Mode** | No BLE action | No BLE action | Exit config mode | — (not processed) | — (not processed) |
+
 ### Button keymap defaults
+
+These factory defaults apply to **all three keymap slots** on a fresh device (i.e. when no saved keymap exists in flash).
 
 | Button | Short press | Long press |
 |---|---|---|

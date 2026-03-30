@@ -246,31 +246,70 @@ private:
   static const byte COLS     = 3;
   static const int  MAX_BTNS = 9; // buttons '1'–'9'
 
+  // Physical layout of the 3×3 key matrix.
+  // Each character is the logical button label used throughout the firmware.
+  // The order matches the wiring: _buttons[row][col] = label.
   char _buttons[ROWS][COLS] = {
     {'1', '5', '4'},
     {'2', '6', '7'},
     {'3', '8', '9'}
   };
 
+  // GPIO pin arrays for the keypad matrix rows and columns.
+  // Populated in the constructor from HardwareConfig constants so that
+  // ButtonManager does not depend directly on the hardware-config header.
   byte _rowPins[ROWS] = {};
   byte _colPins[COLS] = {};
 
+  // Underlying Keypad library instance — handles low-level matrix scanning,
+  // debouncing, and PRESSED/HOLD/RELEASED/IDLE state tracking.
   Keypad _keypad;
 
-  // Callbacks
-  void (*_shortPressHandler)(char)      = nullptr;
-  void (*_longPressHandler)(char)       = nullptr;
-  void (*_comboHandler)(char, char)     = nullptr;
+  // ---- Registered event callbacks (set via setXxxHandler) -----------------
+  // Called by update() when the corresponding event is detected.
+  // All are nullptr until explicitly set; update() checks before calling.
+  void (*_shortPressHandler)(char)      = nullptr;  // tap or auto-repeat fire
+  void (*_longPressHandler)(char)       = nullptr;  // sustained hold beyond longPressTime
+  void (*_comboHandler)(char, char)     = nullptr;  // second button pressed while first is held
 
-  // Per-button configuration (index = btn - '1')
+  // ---- Per-button configuration (index = btn - '1') -----------------------
+  // Set once after begin() via setButtonRepeating() / setButtonLongPressTime().
+
+  // true  → fire shortPressHandler immediately on press-down, then auto-repeat
+  //         at REPEAT_MS intervals after SHORT_PRESS_MAX hold duration.
+  // false → fire shortPressHandler on release (if held < SHORT_PRESS_MAX),
+  //         or fire longPressHandler once the longPressTime threshold is crossed.
   bool          _repeating[MAX_BTNS]    = {};
+
+  // Per-button hold threshold (ms) before longPressHandler fires.
+  // Defaults to SHORT_PRESS_MAX; overridden for button 4 with LONG_PRESS_CONFIG_TIME.
+  // Ignored for repeating buttons (they never fire longPressHandler).
   unsigned long _longPressTime[MAX_BTNS]= {};
 
-  // Per-button runtime state
+  // ---- Per-button runtime state (reset on each press) ---------------------
+
+  // true while the button is physically held down (PRESSED or HOLD state).
+  // Cleared on RELEASED or IDLE (missed-release recovery).
   bool          _active[MAX_BTNS]       = {};
+
+  // millis() timestamp recorded when the button first transitioned to PRESSED.
+  // Used to calculate how long the button has been held: (now - _pressStart[i]).
   unsigned long _pressStart[MAX_BTNS]   = {};
+
+  // millis() timestamp of the most recent auto-repeat fire for this button.
+  // Used to enforce the REPEAT_MS spacing between successive repeat callbacks.
+  // Only meaningful when _repeating[i] is true.
   unsigned long _lastRepeat[MAX_BTNS]   = {};
+
+  // Guard flag: set to true the first time longPressHandler is called for this
+  // press.  Prevents the callback from firing again on subsequent HOLD scans and
+  // also suppresses the shortPressHandler on release (one action per press).
   bool          _longFired[MAX_BTNS]    = {};
+
+  // Guard flag: set to true when this button is involved in a combo press
+  // (either as the "held" button or the newly "pressed" button).
+  // Suppresses both the shortPressHandler and longPressHandler for that button
+  // so the combo action is the only event fired.
   bool          _comboFired[MAX_BTNS]   = {};
 
   // Map '1'–'9' → 0–8; returns -1 for unrecognised chars

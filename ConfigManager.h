@@ -316,17 +316,29 @@ public:
   // ---------------------------------------------------------------------------
   // Keymap / BLE name accessors
   // ---------------------------------------------------------------------------
+
+  // Returns the short-press key code for button index idx (0-based) in the
+  // currently active keymap slot.  Returns 0 if idx is out of range.
   uint8_t getShortKey(int idx) const {
     int km = (_activeKeymap >= 1 && _activeKeymap <= 3) ? _activeKeymap - 1 : 0;
     return (idx >= 0 && idx < 8) ? _short[km][idx] : 0;
   }
+
+  // Returns the long-press key code for button index idx in the active keymap.
+  // A return value of 0 means "repeat short key" mode — the short key auto-
+  // repeats while the button is held rather than sending a distinct long-press key.
+  // Returns 0 (repeat mode) for out-of-range idx.
   uint8_t getLongKey(int idx) const {
     int km = (_activeKeymap >= 1 && _activeKeymap <= 3) ? _activeKeymap - 1 : 0;
     return (idx >= 0 && idx < 8) ? _long[km][idx]  : 0;
   }
+
+  // Returns the BLE advertising device name (null-terminated, ≤ BLE_NAME_MAX_LEN chars).
   const char* getBleName()     const { return _bleName; }
 
-  // Map button label '1'-'8' → keymap index 0-7. Returns -1 for unmapped keys.
+  // Maps the physical button label character ('1'–'8') to a 0-based keymap
+  // index suitable for passing to getShortKey() / getLongKey().
+  // Button '9' and any other characters return -1 (not mapped in the keymap).
   static int btnIndex(char key) {
     if (key >= '1' && key <= '8') return key - '1';
     return -1;
@@ -375,18 +387,45 @@ public:
   void setExitRequested(bool v) { _exitConfig = v; }
 
 private:
+  // Pointer to the StatusLedManager; used by web handlers to signal progress
+  // (e.g. flash the LED after a save or OTA).  Injected via begin().
   StatusLedManager* _led             = nullptr;
+
+  // Set to true to break out of the config-mode event loop.
+  // Raised by a Button-4 tap in on_short_press(), or implicitly after /save,
+  // /clearbonds, and /update handlers reboot the device.
   bool              _exitConfig       = false;
+
+  // Firmware version string passed in via begin(); displayed in the web UI footer.
   char              _firmwareVersion[32] = {};
 
+  // Keymap storage: 3 slots × 8 buttons × short/long key codes.
+  // Indices: _short[slot][button_index], _long[slot][button_index]
+  //   slot         : 0–2 (maps to Keymap 1–3)
+  //   button_index : 0–7 (maps to buttons 1–8)
+  // A long value of 0 means "repeat short key" mode for that button.
   uint8_t _short[3][8] = {};
   uint8_t _long[3][8]  = {};
-  int     _activeKeymap = 1;  // 1-based; persisted in NVS
+
+  // Which of the three keymap slots is currently active (1-based: 1, 2, or 3).
+  // Persisted in NVS under the "sys" namespace ("activekm" key) so the last-used
+  // keymap survives reboots.  Updated by setActiveKeymap() and on-device combos.
+  int     _activeKeymap = 1;
+
+  // BLE advertising device name shown in the host Bluetooth pairing dialog.
+  // Up to BLE_NAME_MAX_LEN (32) printable ASCII characters, null-terminated.
+  // Persisted in NVS under the "config" namespace ("blename" key).
   char    _bleName[BLE_NAME_MAX_LEN + 1] = "BarButtonsMod";
 
+  // Arduino Preferences instance used for all NVS read/write operations.
+  // Only one namespace is open at a time; begin()/end() calls bracket each access.
   Preferences _prefs;
+
+  // ESP32 WebServer instance listening on port 80 while the config AP is active.
+  // Torn down (stop + close) when endConfigAP() is called.
   WebServer   _server{80};
 
+  // WiFi AP credentials.  The SSID is also used as the mDNS hostname.
   const char* _apSsid = "BarButtons-Config";
   const char* _apPswd = "barbuttons";
 
