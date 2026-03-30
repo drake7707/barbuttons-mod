@@ -64,7 +64,7 @@ stateDiagram-v2
     [*] --> BT_Disconnected : power on / boot
 
     BT_Disconnected : BT Disconnected\n(LED slow blink 500/500 ms)
-    BT_Connected    : BT Connected\n(LED off; brief flash on keypress)
+    BT_Connected    : BT Connected\n(LED off, brief flash on keypress)
     Config_Mode     : Config Mode\n(WiFi AP active, LED fast blink 100/3000 ms)
 
     BT_Disconnected --> BT_Connected    : host connects via BLE
