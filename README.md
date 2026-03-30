@@ -43,6 +43,8 @@ Based on the original BarButtons v1 firmware, this version replaces the STA-base
 
 > **Note:** Button 4 long-press is reserved as the config trigger and cannot be remapped.
 
+<img width="954" height="1053" alt="afbeelding" src="https://github.com/user-attachments/assets/2c9cb0d5-f35d-43a9-8548-d1159ceaeb5e" />
+
 ### Multiple keymaps
 
 The firmware supports three independent keymap slots.  Each slot has its own Short Press and Long Press assignment for all 8 buttons.  All three slots are edited together in the web config UI and are saved to flash at the same time.
