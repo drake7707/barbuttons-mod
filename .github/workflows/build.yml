@@ -2,19 +2,20 @@ name: Build
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install arduino-cli
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
-          echo "$HOME/bin" >> $GITHUB_PATH
+        uses: arduino/setup-arduino-cli@v2
 
       - name: Configure arduino-cli
         run: |
@@ -32,18 +33,32 @@ jobs:
           arduino-cli lib install "Keypad@3.1.1"
           arduino-cli lib install "NimBLE-Arduino@2.4.0"
 
-      - name: Set DEBUG=0 for production build
-        run: sed -i 's/const int DEBUG = 1;/const int DEBUG = 0;/' barbuttons_keymap.ino
+      - name: Set version and DEBUG=0 for production build
+        run: |
+          VERSION="1.0.${{ github.run_number }}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          sed -i "s/const char FIRMWARE_VERSION\[\] = \".*\";/const char FIRMWARE_VERSION[] = \"$VERSION\";/" barbuttons_keymap.ino
+          sed -i 's/const int DEBUG = 1;/const int DEBUG = 0;/' barbuttons_keymap.ino
 
       - name: Compile sketch
         run: |
+          mkdir barbuttons_keymap
+          cp barbuttons_keymap.ino *.h barbuttons_keymap/
           arduino-cli compile \
             --fqbn esp32:esp32:esp32c3:PartitionScheme=min_spiffs,FlashSize=4M \
             --output-dir build \
-            .
+            barbuttons_keymap/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware
           path: build/
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v$VERSION" build/* \
+            --title "Firmware v$VERSION" \
+            --notes "Automated firmware build v$VERSION (run #${{ github.run_number }})"
