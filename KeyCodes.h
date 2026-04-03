@@ -40,3 +40,11 @@
 #define KEY_F10  0xCB
 #define KEY_F11  0xCC
 #define KEY_F12  0xCD
+// Media / Consumer Control keys (sent via HID Consumer Control report, Report ID 2)
+#define KEY_MEDIA_PLAY_PAUSE  0xE0
+#define KEY_MEDIA_STOP        0xE1
+#define KEY_MEDIA_NEXT        0xE2
+#define KEY_MEDIA_PREV        0xE3
+#define KEY_MEDIA_VOL_UP      0xE4
+#define KEY_MEDIA_VOL_DOWN    0xE5
+#define KEY_MEDIA_MUTE        0xE6

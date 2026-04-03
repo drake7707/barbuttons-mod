@@ -134,7 +134,9 @@ var K=[
   [218,'Up Arrow'],[217,'Down Arrow'],[216,'Left Arrow'],[215,'Right Arrow'],
   [193,'Caps Lock'],
   [194,'F1'],[195,'F2'],[196,'F3'],[197,'F4'],[198,'F5'],[199,'F6'],
-  [200,'F7'],[201,'F8'],[202,'F9'],[203,'F10'],[204,'F11'],[205,'F12']
+  [200,'F7'],[201,'F8'],[202,'F9'],[203,'F10'],[204,'F11'],[205,'F12'],
+  [224,'Play/Pause'],[225,'Stop'],[226,'Next Track'],[227,'Prev Track'],
+  [228,'Volume Up'],[229,'Volume Down'],[230,'Mute']
 ];
 for(var i=97;i<=122;i++) K.push([i, String.fromCharCode(i)]); // a-z
 for(var i=48;i<=57;i++)  K.push([i, String.fromCharCode(i)]); // 0-9
