@@ -33,7 +33,7 @@ const int DEBUG = 1;  // Set to 1 only when Serial monitor is attached
 // ---------------------------------------------------------------------------
 // Firmware version — shown in the web config UI
 // ---------------------------------------------------------------------------
-const char FIRMWARE_VERSION[] = "1.0.1";
+const char FIRMWARE_VERSION[] = "1.1.0";
 
 // ---------------------------------------------------------------------------
 // Manager includes
