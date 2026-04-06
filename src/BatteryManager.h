@@ -99,13 +99,17 @@ public:
     if (DEBUG) printf("[Battery] raw=%d adc=%d mV bat=%d mV -> %d%%\n",
                       raw, adc_mv, bat_mv, pct);
 
-    if (_handler) _handler((uint8_t)pct);
+    if (_handler && (uint8_t)pct != _lastPct) {
+      _lastPct = (uint8_t)pct;
+      _handler(_lastPct);
+    }
   }
 
 private:
   adc_channel_t             _channel    = ADC_CHANNEL_0;
   uint32_t                  _intervalMs = 60000;
   uint32_t                  _lastReadMs = 0;
+  uint8_t                   _lastPct    = 0xFF;  // 0xFF = no reading yet
   adc_oneshot_unit_handle_t _adcHandle  = nullptr;
   adc_cali_handle_t         _calHandle  = nullptr;
   bool                      _calEnabled = false;

@@ -16,7 +16,7 @@ static const uint8_t KEYPAD_COL_PINS[3] = {3, 4, 5};
 // Returns the column-pin array for the given battery mode.
 // Column pins are the same in both modes; the function exists for API symmetry
 // with getKeypadRowPins().
-inline const uint8_t* getKeypadColPins(bool /*withBattery*/) {
+inline const uint8_t* getKeypadColPins([[maybe_unused]] bool withBattery) {
   return KEYPAD_COL_PINS;
 }
 

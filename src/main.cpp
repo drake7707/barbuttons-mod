@@ -254,10 +254,12 @@ extern "C" void app_main() {
 
   if (DEBUG) printf("Setup complete.\n");
 
+  const bool batteryEnabled = configManager.isBatteryEnabled();
+
   // Main loop
   while (true) {
     buttonManager.update();
-    if (configManager.isBatteryEnabled()) batteryManager.update();
+    if (batteryEnabled) batteryManager.update();
 
     // Track BLE connection state changes
     AppStatus status = ledManager.getStatus();
