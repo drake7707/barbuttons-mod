@@ -225,7 +225,8 @@ void setup() {
     .min_freq_mhz      = 10,
     .light_sleep_enable = true,
   };
-  esp_pm_configure(&pm_config);
+  if (esp_pm_configure(&pm_config) != ESP_OK && DEBUG)
+    Serial.println("Warning: esp_pm_configure failed — light sleep not active.");
 }
 
 // ---------------------------------------------------------------------------
