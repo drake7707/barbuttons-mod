@@ -84,7 +84,7 @@ public:
     if (_calEnabled && _calHandle) {
       adc_cali_raw_to_voltage(_calHandle, raw, &adc_mv);
     } else {
-      // Fallback: linear approximation, 3 100 mV full scale, 12-bit resolution.
+      // Fallback: linear approximation, 3100 mV full scale, 12-bit resolution.
       adc_mv = (int)((int64_t)raw * 3100 / 4095);
     }
 

@@ -39,8 +39,14 @@ public:
   ButtonManager()
     : _keypad(makeKeymap(_buttons), _rowPins, _colPins, ROWS, COLS)
   {
-    memcpy(_rowPins, KEYPAD_ROW_PINS, sizeof(_rowPins));
+    memcpy(_rowPins, KEYPAD_ROW_PINS_DEFAULT, sizeof(_rowPins));
     memcpy(_colPins, KEYPAD_COL_PINS, sizeof(_colPins));
+  }
+
+  // Override the row pins before begin() to select the battery / no-battery
+  // pin layout.  See getKeypadRowPins() in HardwareConfig.h.
+  void setRowPins(const uint8_t* pins) {
+    memcpy(_rowPins, pins, sizeof(_rowPins));
   }
 
   void begin() {

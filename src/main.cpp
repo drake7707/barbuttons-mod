@@ -210,6 +210,7 @@ extern "C" void app_main() {
   configManager.loadKeymap();
   configManager.loadActiveKeymap();
   configManager.loadBleName();
+  configManager.loadBatteryEnabled();
 
   bleManager.begin(configManager.getBleName());
 
@@ -221,6 +222,7 @@ extern "C" void app_main() {
     if (DEBUG) printf("BLE bonds cleared on request.\n");
   }
 
+  buttonManager.setRowPins(getKeypadRowPins(configManager.isBatteryEnabled()));
   buttonManager.begin();
   applyKeymap();
   // Flash N times to indicate which keymap is active on boot
@@ -230,8 +232,10 @@ extern "C" void app_main() {
   buttonManager.setLongPressHandler(on_long_press);
   buttonManager.setComboHandler(on_combo);
 
-  batteryManager.begin((adc_channel_t)ADC_BATTERY_PIN);
-  batteryManager.setBatteryReadingHandler(on_battery_reading);
+  if (configManager.isBatteryEnabled()) {
+    batteryManager.begin(ADC_BATTERY_CHANNEL);
+    batteryManager.setBatteryReadingHandler(on_battery_reading);
+  }
 
   // Enable automatic light sleep when the CPU is idle.
   // Requires CONFIG_PM_ENABLE=y and CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
@@ -252,7 +256,7 @@ extern "C" void app_main() {
   // Main loop
   while (true) {
     buttonManager.update();
-    batteryManager.update();
+    if (configManager.isBatteryEnabled()) batteryManager.update();
 
     // Track BLE connection state changes
     AppStatus status = ledManager.getStatus();

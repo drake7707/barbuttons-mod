@@ -94,6 +94,11 @@ Tap Button 4 on the device to exit without saving.</p>
        placeholder="BarButtonsMod">
 <p class="hint">1&#8211;32 printable ASCII characters &mdash; shown in the Bluetooth pairing dialog.</p>
 </div>
+<div class="field">
+<label><input type="checkbox" name="battery_enabled" value="1" BATTERYENABLED> Enable battery level reading</label>
+<p class="hint">Reads the cell voltage via GPIO0 (ADC) and reports charge percentage over BLE.<br>
+<strong>Requires</strong> the 680&thinsp;k&#8486; / 220&thinsp;k&#8486; voltage divider and remaps the third keypad row (GPIO0&thinsp;&rarr;&thinsp;GPIO7). Takes effect after Save&nbsp;&amp;&nbsp;Reboot.</p>
+</div>
 <input type="submit" class="save" value="Save &amp; Reboot">
 </form>
 <hr style="margin:24px 0">
@@ -322,6 +327,32 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  // NVS -- battery enable flag (default: disabled)
+  // ---------------------------------------------------------------------------
+  void loadBatteryEnabled() {
+    nvs_handle_t h;
+    uint8_t flag = 0;
+    if (nvs_open("sys", NVS_READONLY, &h) == ESP_OK) {
+      nvs_get_u8(h, "baten", &flag);
+      nvs_close(h);
+    }
+    _batteryEnabled = (flag != 0);
+    if (DEBUG) printf("Battery enabled: %s\n", _batteryEnabled ? "yes" : "no");
+  }
+
+  void saveBatteryEnabled() {
+    nvs_handle_t h;
+    if (nvs_open("sys", NVS_READWRITE, &h) == ESP_OK) {
+      nvs_set_u8(h, "baten", _batteryEnabled ? 1 : 0);
+      nvs_commit(h);
+      nvs_close(h);
+    }
+    if (DEBUG) printf("Battery enabled saved: %s\n", _batteryEnabled ? "yes" : "no");
+  }
+
+  bool isBatteryEnabled() const { return _batteryEnabled; }
+
+  // ---------------------------------------------------------------------------
   // NVS -- "clear bonds" flag
   // ---------------------------------------------------------------------------
   void requestClearBonds() {
@@ -435,6 +466,7 @@ private:
   uint8_t           _short[3][8]  = {};
   uint8_t           _long[3][8]   = {};
   int               _activeKeymap = 1;
+  bool              _batteryEnabled = false;
   char              _bleName[BLE_NAME_MAX_LEN + 1] = "BarButtonsMod";
   httpd_handle_t    _server    = nullptr;
   esp_netif_t*      _apNetif   = nullptr;
@@ -575,6 +607,7 @@ private:
       else               bn += c;
     }
     _strReplace(html, "BLENAME", bn);
+    _strReplace(html, "BATTERYENABLED", _batteryEnabled ? "checked" : "");
     _strReplace(html, "FWVER", std::string(_firmwareVersion));
 
     httpd_resp_set_type(req, "text/html");
@@ -608,6 +641,10 @@ private:
       _bleName[sizeof(_bleName) - 1] = '\0';
       saveBleName();
     }
+
+    std::string batParam = _formParam(body.c_str(), "battery_enabled");
+    _batteryEnabled = (batParam == "1");
+    saveBatteryEnabled();
 
     static const char resp[] =
       "<!DOCTYPE html><html>"
