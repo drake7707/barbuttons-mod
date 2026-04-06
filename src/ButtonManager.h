@@ -6,7 +6,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "Keypad.h"
-#include "HardwareConfig.h"
 
 extern const int DEBUG;
 
@@ -38,10 +37,7 @@ public:
 
   ButtonManager()
     : _keypad(makeKeymap(_buttons), _rowPins, _colPins, ROWS, COLS)
-  {
-    memcpy(_rowPins, KEYPAD_ROW_PINS_DEFAULT, sizeof(_rowPins));
-    memcpy(_colPins, KEYPAD_COL_PINS, sizeof(_colPins));
-  }
+  {}
 
   // Apply the row and column pin layout before begin().
   // Use getKeypadRowPins() / getKeypadColPins() from HardwareConfig.h to
