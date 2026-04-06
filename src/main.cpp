@@ -46,6 +46,7 @@ const char FIRMWARE_VERSION[] = "1.1.0";
 #include "BLEManager.h"
 #include "ConfigManager.h"
 #include "ButtonManager.h"
+#include "BatteryManager.h"
 
 // ---------------------------------------------------------------------------
 // Global manager instances
@@ -54,6 +55,7 @@ StatusLedManager ledManager;
 BLEManager       bleManager("JaxeADV", 100);
 ConfigManager    configManager;
 ButtonManager    buttonManager;
+BatteryManager   batteryManager;
 
 // Apply the currently active keymap to ButtonManager.
 // Call once in setup() and again whenever the active keymap changes.
@@ -181,6 +183,12 @@ void on_combo(char held, char pressed) {
   }
 }
 
+// Battery reading event — fired by BatteryManager, glued to BLE here in main.
+void on_battery_reading(uint8_t percent) {
+  if (DEBUG) printf("Battery: %d%%\n", percent);
+  bleManager.setBatteryLevel(percent);
+}
+
 // ---------------------------------------------------------------------------
 // ESP-IDF entry point
 // ---------------------------------------------------------------------------
@@ -222,6 +230,9 @@ extern "C" void app_main() {
   buttonManager.setLongPressHandler(on_long_press);
   buttonManager.setComboHandler(on_combo);
 
+  batteryManager.begin((adc_channel_t)ADC_BATTERY_PIN);
+  batteryManager.setBatteryReadingHandler(on_battery_reading);
+
   // Enable automatic light sleep when the CPU is idle.
   // Requires CONFIG_PM_ENABLE=y and CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
   // in sdkconfig.defaults (already set).
@@ -241,6 +252,7 @@ extern "C" void app_main() {
   // Main loop
   while (true) {
     buttonManager.update();
+    batteryManager.update();
 
     // Track BLE connection state changes
     AppStatus status = ledManager.getStatus();

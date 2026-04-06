@@ -181,6 +181,13 @@ public:
   // Release all held media keys.
   void releaseAllMedia() { _repCC = 0; sendCC(); }
 
+  // Update the BLE Battery Service level (0–100 %).
+  // Notifies the connected host if a connection is active.
+  void setBatteryLevel(uint8_t level) {
+    _bat = level;
+    if (_hid) _hid->setBatteryLevel(level, _connected);
+  }
+
   // Delete all stored BLE bonds from NVS
   static void clearAllBonds() { NimBLEDevice::deleteAllBonds(); }
 
