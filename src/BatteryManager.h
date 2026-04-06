@@ -16,6 +16,15 @@ static constexpr int VDIV_R2_KOHM = 220;
 static constexpr int BAT_MIN_MV  = 3000;
 static constexpr int BAT_MAX_MV  = 4200;
 
+// ADC fallback (no calibration): full-scale input range (mV) and max raw value
+// for 12-bit resolution (2^12 - 1 = 4095).
+static constexpr int ADC_FULL_SCALE_MV = 3100;
+static constexpr int ADC_MAX_RAW       = 4095;
+
+// Sentinel value for _lastPct meaning "no reading taken yet".
+// Must be outside the valid 0–100 % range.
+static constexpr uint8_t BAT_PCT_NO_READING = 0xFF;
+
 // ---------------------------------------------------------------------------
 // BatteryManager — periodically reads battery voltage via ADC and fires a
 // callback with the estimated charge percentage.
@@ -85,7 +94,7 @@ public:
       adc_cali_raw_to_voltage(_calHandle, raw, &adc_mv);
     } else {
       // Fallback: linear approximation, 3100 mV full scale, 12-bit resolution.
-      adc_mv = (int)((int64_t)raw * 3100 / 4095);
+      adc_mv = (int)((int64_t)raw * ADC_FULL_SCALE_MV / ADC_MAX_RAW);
     }
 
     // Scale up through the voltage divider to get the actual battery voltage.
@@ -109,7 +118,7 @@ private:
   adc_channel_t             _channel    = ADC_CHANNEL_0;
   uint32_t                  _intervalMs = 60000;
   uint32_t                  _lastReadMs = 0;
-  uint8_t                   _lastPct    = 0xFF;  // 0xFF = no reading yet
+  uint8_t                   _lastPct    = BAT_PCT_NO_READING;
   adc_oneshot_unit_handle_t _adcHandle  = nullptr;
   adc_cali_handle_t         _calHandle  = nullptr;
   bool                      _calEnabled = false;
