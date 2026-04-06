@@ -38,7 +38,6 @@ const char FIRMWARE_VERSION[] = "1.1.0";
 // ---------------------------------------------------------------------------
 // Manager includes
 // ---------------------------------------------------------------------------
-#include "esp_pm.h"
 #include "HardwareConfig.h"
 #include "StatusLedManager.h"
 #include "BLEManager.h"
@@ -215,18 +214,6 @@ void setup() {
   buttonManager.setComboHandler(on_combo);
 
   if (DEBUG) Serial.println("Setup complete.");
-
-  // Enable automatic light sleep via the ESP-IDF Power Management framework.
-  // This lets the CPU sleep between FreeRTOS ticks while the BLE controller
-  // and NimBLE stack continue to operate correctly — they register their own
-  // PM locks that prevent sleep during active BLE events.
-  esp_pm_config_esp32c3_t pm_config = {
-    .max_freq_mhz      = 160,
-    .min_freq_mhz      = 10,
-    .light_sleep_enable = true,
-  };
-  if (esp_pm_configure(&pm_config) != ESP_OK && DEBUG)
-    Serial.println("Warning: esp_pm_configure failed — light sleep not active.");
 }
 
 // ---------------------------------------------------------------------------
