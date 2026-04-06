@@ -14,52 +14,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install arduino-cli
-        uses: arduino/setup-arduino-cli@v2
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
-      - name: Configure arduino-cli
-        run: |
-          arduino-cli config init
-          arduino-cli config add board_manager.additional_urls \
-            https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-
-      - name: Install ESP32 platform
-        run: |
-          arduino-cli core update-index
-          arduino-cli core install esp32:esp32
-
-      - name: Install libraries
-        run: |
-          arduino-cli lib install "Keypad@3.1.1"
-          arduino-cli lib install "NimBLE-Arduino@2.4.0"
+      - name: Install PlatformIO
+        run: pip install platformio
 
       - name: Set version and DEBUG=0 for production build
         run: |
-          MAJOR_MINOR=$(grep -oP 'const char FIRMWARE_VERSION\[\] = "\K[0-9]+\.[0-9]+' barbuttons_keymap.ino)
+          MAJOR_MINOR=$(grep -oP 'const char FIRMWARE_VERSION\[\] = "\K[0-9]+\.[0-9]+' src/main.cpp)
           VERSION="${MAJOR_MINOR}.${{ github.run_number }}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          sed -i "s/const char FIRMWARE_VERSION\[\] = \".*\";/const char FIRMWARE_VERSION[] = \"$VERSION\";/" barbuttons_keymap.ino
-          sed -i 's/const int DEBUG = 1;/const int DEBUG = 0;/' barbuttons_keymap.ino
+          sed -i "s/const char FIRMWARE_VERSION\[\] = \".*\";/const char FIRMWARE_VERSION[] = \"$VERSION\";/" src/main.cpp
+          sed -i 's/const int DEBUG = 1;/const int DEBUG = 0;/' src/main.cpp
 
-      - name: Compile sketch
-        run: |
-          mkdir barbuttons_keymap
-          cp barbuttons_keymap.ino *.h barbuttons_keymap/
-          arduino-cli compile \
-            --fqbn esp32:esp32:esp32c3:PartitionScheme=min_spiffs,FlashSize=4M \
-            --output-dir build \
-            barbuttons_keymap/
+      - name: Build firmware
+        run: pio run
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: build/
+          path: .pio/build/esp32-c3-devkitm-1/firmware.bin
 
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v$VERSION" build/* \
+          gh release create "v$VERSION" .pio/build/esp32-c3-devkitm-1/firmware.bin \
             --title "Firmware v$VERSION" \
             --notes "Automated firmware build v$VERSION (run #${{ github.run_number }})"

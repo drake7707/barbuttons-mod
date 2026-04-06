@@ -1,6 +1,12 @@
 #pragma once
 
-#include <Arduino.h>
+#include <driver/gpio.h>
+#include <esp_timer.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+// Returns milliseconds since boot (wraps after ~49 days; safe for interval arithmetic).
+static inline uint32_t millis_now() { return (uint32_t)(esp_timer_get_time() / 1000LL); }
 
 // ---------------------------------------------------------------------------
 // AppStatus — shared application-state enum used by multiple managers
@@ -20,10 +26,17 @@ public:
   void begin(int pin) {
     _pin          = pin;
     _ledState     = 0;
-    _ledStateTime = millis();
+    _ledStateTime = millis_now();
     _status       = APP_BT_DISCONNECTED;
-    pinMode(_pin, OUTPUT);
-    digitalWrite(_pin, LOW);
+
+    gpio_config_t io = {};
+    io.pin_bit_mask = 1ULL << pin;
+    io.mode         = GPIO_MODE_OUTPUT;
+    io.pull_up_en   = GPIO_PULLUP_DISABLE;
+    io.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io.intr_type    = GPIO_INTR_DISABLE;
+    gpio_config(&io);
+    gpio_set_level((gpio_num_t)pin, 0);
   }
 
   // Schedule a non-blocking LED flash animation.
@@ -35,8 +48,8 @@ public:
     _flashOnTime    = length;
     _flashOffTime   = delayTime;
     _flashLedOn     = true;
-    digitalWrite(_pin, HIGH);
-    _flashStateTime = millis();
+    gpio_set_level((gpio_num_t)_pin, 1);
+    _flashStateTime = millis_now();
   }
 
   void setStatus(AppStatus s) { _status = s; }
@@ -45,26 +58,27 @@ public:
   // Reset LED to off and restart the blink timer
   void resetLedState() {
     _ledState     = 0;
-    _ledStateTime = millis();
-    digitalWrite(_pin, LOW);
+    _ledStateTime = millis_now();
+    gpio_set_level((gpio_num_t)_pin, 0);
   }
 
   // Drive blink pattern and flash animation — call every loop iteration
   void update() {
+    uint32_t now = millis_now();
+
     // A pending flash animation takes priority over the status blink pattern
     if (_flashActive) {
-      unsigned long now = millis();
       if (_flashLedOn) {
         if (now - _flashStateTime >= _flashOnTime) {
           _flashRemaining--;
           if (_flashRemaining == 0) {
             // Last flash complete — turn off and return to status blink
-            digitalWrite(_pin, LOW);
+            gpio_set_level((gpio_num_t)_pin, 0);
             _flashActive  = false;
             _ledStateTime = now;  // reset status blink timer
           } else {
             // More flashes to go — turn off and wait for off delay
-            digitalWrite(_pin, LOW);
+            gpio_set_level((gpio_num_t)_pin, 0);
             _flashLedOn     = false;
             _flashStateTime = now;
           }
@@ -72,7 +86,7 @@ public:
       } else {
         if (now - _flashStateTime >= _flashOffTime) {
           // Start next flash
-          digitalWrite(_pin, HIGH);
+          gpio_set_level((gpio_num_t)_pin, 1);
           _flashLedOn     = true;
           _flashStateTime = now;
         }
@@ -81,20 +95,20 @@ public:
     }
 
     if (_status == APP_CONNECTED_BLINK) {
-      if ((millis() - _ledStateTime) > (unsigned long)_keymapIndicatorLedDelays[_ledState]) {
+      if ((now - _ledStateTime) > (uint32_t)_keymapIndicatorLedDelays[_ledState]) {
         _ledState = 1 - _ledState;
-        digitalWrite(_pin, _ledState);
-        _ledStateTime = millis();
+        gpio_set_level((gpio_num_t)_pin, _ledState);
+        _ledStateTime = now;
         if (_ledState == 0) {
           if (--_keymapIndicatorCountdown == 0) _status = APP_CONNECTED;
         }
       }
     } else if (_status != APP_CONNECTED) {
       // APP_BT_DISCONNECTED / APP_CONFIG: run the blink timer
-      if ((millis() - _ledStateTime) > (unsigned long)_ledDelays[_status][_ledState]) {
+      if ((now - _ledStateTime) > (uint32_t)_ledDelays[_status][_ledState]) {
         _ledState = 1 - _ledState;
-        digitalWrite(_pin, _ledState);
-        _ledStateTime = millis();
+        gpio_set_level((gpio_num_t)_pin, _ledState);
+        _ledStateTime = now;
       }
     }
     // APP_CONNECTED: LED stays off; key-press events use flashLed() directly
@@ -104,16 +118,16 @@ private:
   int       _pin                      = 0;
   AppStatus _status                   = APP_BT_DISCONNECTED;
   int       _ledState                 = 0;
-  unsigned long _ledStateTime         = 0;
+  uint32_t  _ledStateTime             = 0;
   int       _keymapIndicatorCountdown = 0;
 
   // Non-blocking flash animation state
-  bool          _flashActive    = false;
-  int           _flashRemaining = 0;
-  bool          _flashLedOn     = false;
-  unsigned long _flashOnTime    = 0;
-  unsigned long _flashOffTime   = 0;
-  unsigned long _flashStateTime = 0;
+  bool     _flashActive    = false;
+  int      _flashRemaining = 0;
+  bool     _flashLedOn     = false;
+  uint32_t _flashOnTime    = 0;
+  uint32_t _flashOffTime   = 0;
+  uint32_t _flashStateTime = 0;
 
   int _ledDelays[4][2] = {
     {  500,  500 },  // APP_BT_DISCONNECTED

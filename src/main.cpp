@@ -5,7 +5,7 @@
    Instead of OTA firmware updates over STA, this version:
      - Hosts a WiFi Access Point ("BarButtons-Config")
      - Serves a web page at 192.168.4.1 for configuring the keymap of 8 buttons
-     - Persists the keymap to NVS flash via the Preferences library
+     - Persists the keymap to NVS flash via the NVS API
      - Accepts OTA firmware (.bin) uploads directly from the browser
 
    HOW TO CONFIGURE / UPDATE:
@@ -16,14 +16,17 @@
      5. Firmware: choose a .bin file and press "Flash Firmware".
      6. To exit config mode without changes, tap Button 4 on the device.
 
-   IMPORTANT — PARTITION SCHEME:
-     In Arduino IDE set Tools > Partition Scheme to:
-     "Minimal SPIFFS (1.9MB APP with OTA/190KB SPIFFS)"
-     This is required because the sketch exceeds the default 1.28 MB app limit.
-
    This work is licensed under the Creative Commons Attribution-NonCommercial 4.0
    International License. http://creativecommons.org/licenses/by-nc/4.0/
 */
+
+#include <cstdio>
+#include <nvs_flash.h>
+#include <esp_netif.h>
+#include <esp_event.h>
+#include <esp_pm.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 // ---------------------------------------------------------------------------
 // Build flags
@@ -31,7 +34,7 @@
 const int DEBUG = 1;  // Set to 1 only when Serial monitor is attached
 
 // ---------------------------------------------------------------------------
-// Firmware version — shown in the web config UI
+// Firmware version -- shown in the web config UI
 // ---------------------------------------------------------------------------
 const char FIRMWARE_VERSION[] = "1.1.0";
 
@@ -58,7 +61,7 @@ void applyKeymap() {
   for (int i = 0; i < 8; i++) {
     char btn = '1' + i;
     if (i == 3) {
-      // Button 4: config trigger — non-repeating, 5-second total hold threshold
+      // Button 4: config trigger -- non-repeating, 5-second total hold threshold
       buttonManager.setButtonRepeating(btn, false);
       buttonManager.setButtonLongPressTime(btn, ButtonManager::LONG_PRESS_CONFIG_TIME);
     } else {
@@ -69,14 +72,14 @@ void applyKeymap() {
 }
 
 // ---------------------------------------------------------------------------
-// Config mode — starts the AP, runs the client loop, then restores BLE
+// Config mode -- starts the AP, runs the client loop, then restores BLE
 // ---------------------------------------------------------------------------
 void start_config_mode() {
-  if (DEBUG) Serial.println("Entering config AP mode");
+  if (DEBUG) printf("Entering config AP mode\n");
 
   // On ESP32-C3 the radio is shared; stop BLE before starting WiFi AP
   bleManager.end();
-  delay(100);
+  vTaskDelay(pdMS_TO_TICKS(100));
 
   // Start AP and register web routes (also flashes the LED 5 times)
   // NOTE: ledManager status is intentionally NOT yet APP_CONFIG here.
@@ -87,17 +90,19 @@ void start_config_mode() {
   // Drain the button-4 RELEASED event that triggered config mode.
   // While status != APP_CONFIG the on_short_press handler will NOT set the exit flag.
   buttonManager.drainButton(3000);
-  if (DEBUG) Serial.println("Button released, entering config loop");
+  if (DEBUG) printf("Button released, entering config loop\n");
 
   // Only NOW switch to config-mode status so the exit check becomes active
   ledManager.setStatus(APP_CONFIG);
   ledManager.resetLedState();
 
+  // esp_http_server handles requests in its own task; this loop just drives
+  // the LED blink and watches for a Button-4 tap to exit config mode.
   while (!configManager.isExitRequested()) {
-    configManager.handleClient();
-    buttonManager.update(); // tap of '4' calls on_short_press → sets exit flag
+    configManager.handleClient(); // no-op with esp_http_server
+    buttonManager.update();       // tap of '4' calls on_short_press -> sets exit flag
     ledManager.update();
-    delay(5);
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
 
   configManager.endConfigAP();
@@ -107,11 +112,11 @@ void start_config_mode() {
   ledManager.setStatus(APP_BT_DISCONNECTED);
   ledManager.resetLedState();
 
-  if (DEBUG) Serial.println("Config mode exited, BLE restarting");
+  if (DEBUG) printf("Config mode exited, BLE restarting\n");
 }
 
 // ---------------------------------------------------------------------------
-// High-level button event callbacks — registered with ButtonManager
+// High-level button event callbacks -- registered with ButtonManager
 // ---------------------------------------------------------------------------
 
 // Short press: tap (non-repeating buttons), or repeated fire (repeating buttons)
@@ -131,7 +136,7 @@ void on_short_press(char btn) {
     uint8_t shortKey = configManager.getShortKey(idx);
     if (shortKey == 0) return;
 
-    if (DEBUG) { Serial.print("Short press: "); Serial.print(btn); Serial.printf(" -> key=0x%02X (%d)\n", shortKey, shortKey); }
+    if (DEBUG) printf("Short press: %c -> key=0x%02X (%d)\n", btn, shortKey, shortKey);
     bleManager.write(shortKey);
     ledManager.flashLed(1, 150, 0);
   }
@@ -152,7 +157,7 @@ void on_long_press(char btn) {
   if (idx < 0) return;
 
   uint8_t longKey = configManager.getLongKey(idx);
-  if (DEBUG) Serial.printf("Long press: %c -> key=0x%02X (%d)\n", btn, longKey, longKey);
+  if (DEBUG) printf("Long press: %c -> key=0x%02X (%d)\n", btn, longKey, longKey);
   if (longKey != 0) {
     bleManager.write(longKey);
     ledManager.flashLed(1, 150, 0);
@@ -168,23 +173,28 @@ void on_combo(char held, char pressed) {
     else if (pressed == '3') newKeymap = 3;
 
     if (newKeymap > 0) {
-      if (DEBUG) Serial.printf("Key combo: hold 4 + press %c -> keymap %d\n", pressed, newKeymap);
+      if (DEBUG) printf("Key combo: hold 4 + press %c -> keymap %d\n", pressed, newKeymap);
       configManager.setActiveKeymap(newKeymap);
       applyKeymap();
-      // Flash N times (1/2/3) to acknowledge which keymap is now active
       ledManager.flashLed(newKeymap, 150, 100);
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Arduino setup
+// ESP-IDF entry point
 // ---------------------------------------------------------------------------
-void setup() {
-  if (DEBUG) {
-    Serial.begin(9600);
-    delay(2000); // Wait for USB-CDC to re-enumerate after reset
+extern "C" void app_main() {
+  // NVS must be initialised before any NVS or NimBLE calls.
+  esp_err_t ret = nvs_flash_init();
+  if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+    nvs_flash_erase();
+    nvs_flash_init();
   }
+
+  // TCP/IP stack and default event loop are required for WiFi AP (config mode).
+  esp_netif_init();
+  esp_event_loop_create_default();
 
   ledManager.begin(LED_PIN);
 
@@ -200,40 +210,51 @@ void setup() {
   if (configManager.isClearBondsRequested()) {
     BLEManager::clearAllBonds();
     configManager.clearClearBondsFlag();
-    if (DEBUG) Serial.println("BLE bonds cleared on request.");
+    if (DEBUG) printf("BLE bonds cleared on request.\n");
   }
 
-  // Initialise ButtonManager and apply the active keymap's per-button configuration
   buttonManager.begin();
   applyKeymap();
-  // Flash N times to indicate which keymap is active on boot (same pattern as keymap switching)
+  // Flash N times to indicate which keymap is active on boot
   ledManager.flashLed(configManager.getActiveKeymap(), 150, 100);
 
   buttonManager.setShortPressHandler(on_short_press);
   buttonManager.setLongPressHandler(on_long_press);
   buttonManager.setComboHandler(on_combo);
 
-  if (DEBUG) Serial.println("Setup complete.");
-}
-
-// ---------------------------------------------------------------------------
-// Arduino loop
-// ---------------------------------------------------------------------------
-void loop() {
-  buttonManager.update();
-
-  // Track BLE connection state changes
-  AppStatus status = ledManager.getStatus();
-  if (status == APP_BT_DISCONNECTED && bleManager.isConnected()) {
-    ledManager.setStatus(APP_CONNECTED);
-    ledManager.resetLedState();
-  }
-  if (status != APP_BT_DISCONNECTED && status != APP_CONFIG && !bleManager.isConnected()) {
-    ledManager.setStatus(APP_BT_DISCONNECTED);
+  // Enable automatic light sleep when the CPU is idle.
+  // Requires CONFIG_PM_ENABLE=y and CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+  // in sdkconfig.defaults (already set).
+  esp_pm_config_t pm_config = {
+    .max_freq_mhz      = 160,
+    .min_freq_mhz      = 40,   // lowest valid ESP32-C3 frequency that keeps all peripherals stable
+    .light_sleep_enable = true,
+  };
+  esp_err_t pm_err = esp_pm_configure(&pm_config);
+  if (DEBUG) {
+    if (pm_err == ESP_OK) printf("Light sleep enabled.\n");
+    else printf("esp_pm_configure failed: %s\n", esp_err_to_name(pm_err));
   }
 
-  // Drive LED blink pattern and any pending flash animation
-  ledManager.update();
+  if (DEBUG) printf("Setup complete.\n");
 
-  delay(10);
+  // Main loop
+  while (true) {
+    buttonManager.update();
+
+    // Track BLE connection state changes
+    AppStatus status = ledManager.getStatus();
+    if (status == APP_BT_DISCONNECTED && bleManager.isConnected()) {
+      ledManager.setStatus(APP_CONNECTED);
+      ledManager.resetLedState();
+    }
+    if (status != APP_BT_DISCONNECTED && status != APP_CONFIG && !bleManager.isConnected()) {
+      ledManager.setStatus(APP_BT_DISCONNECTED);
+    }
+
+    // Drive LED blink pattern and any pending flash animation
+    ledManager.update();
+
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
 }

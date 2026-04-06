@@ -1,0 +1,9 @@
+## IDF Component Manager dependencies
+## PlatformIO (framework = espidf) picks this file up automatically and fetches
+## the listed components via idf.py / the Espressif Component Registry.
+dependencies:
+  # esp-nimble-cpp is the ESP-IDF port of the NimBLE-Arduino C++ wrapper.
+  # It exposes the same NimBLEDevice / NimBLEServer / NimBLEHIDDevice API as
+  # the Arduino library, so BLEManager.h requires no changes.
+  h2zero/esp-nimble-cpp:
+    version: ">=2.0.0"

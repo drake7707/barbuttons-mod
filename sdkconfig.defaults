@@ -1,0 +1,40 @@
+# Enable the ESP-IDF power-management driver and FreeRTOS tickless idle.
+# These are required for esp_pm_configure() to accept light_sleep_enable=true
+# without printing a "light sleep is not allowed" warning.
+CONFIG_PM_ENABLE=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+
+# Use a 1 ms FreeRTOS tick (1000 Hz) so the scheduler can enter light sleep
+# with finer granularity instead of the default 10 ms (100 Hz).
+CONFIG_FREERTOS_HZ=1000
+
+# Increase main task stack for NimBLE initialisation overhead.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Allow the HTTP server to receive large OTA firmware binaries.
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+CONFIG_HTTPD_MAX_URI_LEN=512
+
+# Enable Bluetooth and the NimBLE host stack (required by esp-nimble-cpp).
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+
+# BLE controller modem sleep -- required for the radio to power down between
+# connection/advertising events.  Without these the BT radio stays fully on
+# even when esp_pm_configure() has light_sleep_enable=true, explaining the
+# ~30 mA draw instead of the expected ~2.3 mA.
+CONFIG_BT_CTRL_MODEM_SLEEP=y
+CONFIG_BT_CTRL_MODEM_SLEEP_MODE_1=y
+
+# Use the main 40 MHz XTAL as the BT low-power clock source (no external
+# 32 kHz crystal fitted on ESP32-C3-DevKitM-1).  Expected light-sleep current
+# with a BLE connection: ~2.3 mA.  An external 32 kHz crystal would reduce
+# this further to ~140 uA but requires hardware changes.
+CONFIG_BT_CTRL_LPCLK_SEL_MAIN_XTAL=y
+
+# Keep the main XTAL powered during light sleep so the BT controller can wake
+# reliably for the next connection event.
+CONFIG_BT_CTRL_MAIN_XTAL_PU_DURING_LIGHT_SLEEP=y
+
+# Power down the Wi-Fi/BT MAC and baseband when the PHY is not in use.
+CONFIG_ESP_PHY_MAC_BB_PD=y

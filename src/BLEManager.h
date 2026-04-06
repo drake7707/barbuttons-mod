@@ -1,12 +1,15 @@
 #pragma once
 
-#include <Arduino.h>
+#include <cstdio>
+#include <cstring>
 #include <NimBLEDevice.h>
 #include <NimBLEServer.h>
 #include <NimBLEUtils.h>
 #include <NimBLEHIDDevice.h>
 #include "HIDTypes.h"
 #include "KeyCodes.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 extern const int DEBUG;
 
@@ -57,7 +60,7 @@ static const uint8_t _hidReportDesc[] = {
 
 // ASCII 32..126 → HID scan code. Bit 7 set means LEFT_SHIFT is also needed.
 // US QWERTY layout.
-static const uint8_t _asciiToHid[95] PROGMEM = {
+static const uint8_t _asciiToHid[95] = {
   0x2C,                                                       // ' '  32
   0x9E,0xB4,0xA0,0xA1,0xA2,0xA4,0x34,0xA6,0xA7,0xA5,        // !-*  33-42
   0xAE,0x36,0x2D,0x37,0x38,                                  // +-/  43-47
@@ -92,7 +95,7 @@ public:
     // MITM=true, SC=true. The IO capability is left at NimBLE's default —
     // overriding it with NO_INPUT_OUTPUT prevents Android from bonding.
     NimBLEDevice::setSecurityAuth(true, true, true);
-    if (DEBUG) Serial.printf("Bonds in NVS: %d\n", NimBLEDevice::getNumBonds());
+    if (DEBUG) printf("Bonds in NVS: %d\n", NimBLEDevice::getNumBonds());
 
     _srv = NimBLEDevice::createServer();
     _srv->setCallbacks(this);
@@ -125,8 +128,8 @@ public:
     if (NimBLEDevice::getNumBonds() > 0) {
       NimBLEAddress peer = NimBLEDevice::getBondedAddress(0);
       if (DEBUG) {
-        Serial.print("Directed adv to bonded peer: ");
-        Serial.println(peer.toString().c_str());
+        printf("Directed adv to bonded peer: ");
+        printf("%s\n", peer.toString().c_str());
       }
       adv->start(0, &peer);
     } else {
@@ -148,16 +151,16 @@ public:
   // Send a single key tap (press + immediate release).
   // Accepts any KEY_* constant, including media keys (KEY_MEDIA_PLAY_PAUSE, etc.).
   void write(uint8_t key) {
-    if (DEBUG) Serial.printf("[BLE] write: key=0x%02X (%d)\n", key, key);
-    if (isMediaKey(key)) { pressMedia(key); delay(10); releaseAllMedia(); return; }
-    press(key); delay(10); releaseAll();
+    if (DEBUG) printf("[BLE] write: key=0x%02X (%d)\n", key, key);
+    if (isMediaKey(key)) { pressMedia(key); vTaskDelay(pdMS_TO_TICKS(10)); releaseAllMedia(); return; }
+    press(key); vTaskDelay(pdMS_TO_TICKS(10)); releaseAll();
   }
 
   // Hold a regular keyboard key down (accumulates modifiers / keys until releaseAll).
   void press(uint8_t key) {
     uint8_t scan = 0, modBit = 0;
     toHID(key, scan, modBit);
-    if (DEBUG) Serial.printf("[BLE] press: key=0x%02X -> scan=0x%02X mod=0x%02X\n", key, scan, modBit);
+    if (DEBUG) printf("[BLE] press: key=0x%02X -> scan=0x%02X mod=0x%02X\n", key, scan, modBit);
     if (modBit)    _rep.mod |= modBit;
     if (scan)      for (int i = 0; i < 6; i++) if (!_rep.keys[i]) { _rep.keys[i] = scan; break; }
     send();
@@ -170,7 +173,7 @@ public:
   // Accepts KEY_MEDIA_* constants (play/pause, stop, next, prev, vol up/down, mute).
   void pressMedia(uint8_t key) {
     uint16_t usage = mediaKeyToUsage(key);
-    if (DEBUG) Serial.printf("[BLE] pressMedia: key=0x%02X usage=0x%04X\n", key, usage);
+    if (DEBUG) printf("[BLE] pressMedia: key=0x%02X usage=0x%04X\n", key, usage);
     _repCC = usage;
     sendCC();
   }
@@ -194,18 +197,18 @@ private:
 
   void onConnect(NimBLEServer*, NimBLEConnInfo&) override {
     _connected = true;
-    if (DEBUG) Serial.println("BLE connected");
+    if (DEBUG) printf("BLE connected\n");
   }
 
   void onDisconnect(NimBLEServer*, NimBLEConnInfo&, int reason) override {
     _connected = false;
-    if (DEBUG) Serial.printf("BLE disconnected (reason %d), bonds in NVS: %d\n",
+    if (DEBUG) printf("BLE disconnected (reason %d), bonds in NVS: %d\n",
                              reason, NimBLEDevice::getNumBonds());
     // advertising restart handled automatically by advertiseOnDisconnect(true)
   }
 
   void onAuthenticationComplete(NimBLEConnInfo& conn_info) override {
-    if (DEBUG) Serial.printf("Auth complete — bonded: %s, bonds stored: %d\n",
+    if (DEBUG) printf("Auth complete — bonded: %s, bonds stored: %d\n",
                              conn_info.isBonded() ? "yes" : "no",
                              NimBLEDevice::getNumBonds());
   }
@@ -213,7 +216,7 @@ private:
   // Transmits the current keyboard report over BLE.
   void send() {
     if (DEBUG) {
-      Serial.printf("[BLE] send: connected=%d input=%s | mod=0x%02X keys=[%02X %02X %02X %02X %02X %02X]\n",
+      printf("[BLE] send: connected=%d input=%s | mod=0x%02X keys=[%02X %02X %02X %02X %02X %02X]\n",
         (int)_connected, _input ? "ok" : "NULL",
         _rep.mod,
         _rep.keys[0], _rep.keys[1], _rep.keys[2],
@@ -245,7 +248,7 @@ private:
 
   // Transmits the current Consumer Control (media key) report over BLE.
   void sendCC() {
-    if (DEBUG) Serial.printf("[BLE] sendCC: connected=%d inputCC=%s | usage=0x%04X\n",
+    if (DEBUG) printf("[BLE] sendCC: connected=%d inputCC=%s | usage=0x%04X\n",
       (int)_connected, _inputCC ? "ok" : "NULL", _repCC);
     if (_connected && _inputCC) {
       uint8_t buf[2] = { (uint8_t)(_repCC & 0xFF), (uint8_t)(_repCC >> 8) };
@@ -259,7 +262,7 @@ private:
     scan = 0; mod = 0;
     if (k >= 0x80 && k <= 0x87) { mod = 1 << (k - 0x80); return; } // modifier keys
     if (k >= 32  && k <= 126)   {
-      uint8_t e = pgm_read_byte(&_asciiToHid[k - 32]);
+      uint8_t e = _asciiToHid[k - 32];
       if (e & 0x80) { mod = 0x02; scan = e & 0x7F; } else { scan = e; }
       return;
     }
