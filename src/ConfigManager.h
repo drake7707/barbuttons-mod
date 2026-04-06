@@ -225,7 +225,7 @@ public:
       nvs_handle_t h;
       bool opened = (nvs_open(namespaces[km], NVS_READONLY, &h) == ESP_OK);
       for (int i = 0; i < 8; i++) {
-        char key[4];
+        char key[8]; // "s"/"l" + up to 3 digits + null
         snprintf(key, sizeof(key), "s%d", i);
         uint8_t v = DEFAULT_SHORT[i];
         if (opened) nvs_get_u8(h, key, &v);
@@ -254,9 +254,11 @@ public:
       nvs_handle_t h;
       if (nvs_open(namespaces[km], NVS_READWRITE, &h) != ESP_OK) continue;
       for (int i = 0; i < 8; i++) {
-        char key[4];
-        snprintf(key, sizeof(key), "s%d", i); nvs_set_u8(h, key, _short[km][i]);
-        snprintf(key, sizeof(key), "l%d", i); nvs_set_u8(h, key, _long[km][i]);
+        char key[8]; // "s"/"l" + up to 3 digits + null
+        snprintf(key, sizeof(key), "s%d", i);
+        nvs_set_u8(h, key, _short[km][i]);
+        snprintf(key, sizeof(key), "l%d", i);
+        nvs_set_u8(h, key, _long[km][i]);
       }
       nvs_commit(h);
       nvs_close(h);
@@ -585,7 +587,7 @@ private:
 
     for (int km = 0; km < 3; km++) {
       for (int i = 0; i < 8; i++) {
-        char si[6];
+        char si[8]; // km digit + "_" + btn digit + null
         snprintf(si, sizeof(si), "%d_%d", km + 1, i);
         std::string sv = _formParam(body.c_str(), (std::string("s") + si).c_str());
         std::string lv = _formParam(body.c_str(), (std::string("l") + si).c_str());
