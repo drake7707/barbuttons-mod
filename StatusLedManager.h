@@ -42,25 +42,6 @@ public:
   void setStatus(AppStatus s) { _status = s; }
   AppStatus getStatus()       { return _status; }
 
-  // Returns milliseconds until the next LED state transition is due.
-  // Returns 0 if a transition is already overdue.
-  // Returns ULONG_MAX when the LED is permanently off (APP_CONNECTED, no flash).
-  // Used by the power-management code to determine how long the CPU may sleep.
-  unsigned long msUntilNextUpdate() const {
-    unsigned long now = millis();
-    if (_flashActive) {
-      unsigned long elapsed = now - _flashStateTime;
-      unsigned long phase   = _flashLedOn ? _flashOnTime : _flashOffTime;
-      return (elapsed >= phase) ? 0 : (phase - elapsed);
-    }
-    if (_status == APP_CONNECTED) return ULONG_MAX;
-    unsigned long elapsed  = now - _ledStateTime;
-    unsigned long duration = (_status == APP_CONNECTED_BLINK)
-        ? (unsigned long)_keymapIndicatorLedDelays[_ledState]
-        : (unsigned long)_ledDelays[_status][_ledState];
-    return (elapsed >= duration) ? 0 : (duration - elapsed);
-  }
-
   // Reset LED to off and restart the blink timer
   void resetLedState() {
     _ledState     = 0;

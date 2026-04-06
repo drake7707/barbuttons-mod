@@ -38,12 +38,12 @@ const char FIRMWARE_VERSION[] = "1.1.0";
 // ---------------------------------------------------------------------------
 // Manager includes
 // ---------------------------------------------------------------------------
+#include "esp_pm.h"
 #include "HardwareConfig.h"
 #include "StatusLedManager.h"
 #include "BLEManager.h"
 #include "ConfigManager.h"
 #include "ButtonManager.h"
-#include "SleepManager.h"
 
 // ---------------------------------------------------------------------------
 // Global manager instances
@@ -52,7 +52,6 @@ StatusLedManager ledManager;
 BLEManager       bleManager("JaxeADV", 100);
 ConfigManager    configManager;
 ButtonManager    buttonManager;
-SleepManager     sleepManager(ledManager, buttonManager);
 
 // Apply the currently active keymap to ButtonManager.
 // Call once in setup() and again whenever the active keymap changes.
@@ -216,6 +215,17 @@ void setup() {
   buttonManager.setComboHandler(on_combo);
 
   if (DEBUG) Serial.println("Setup complete.");
+
+  // Enable automatic light sleep via the ESP-IDF Power Management framework.
+  // This lets the CPU sleep between FreeRTOS ticks while the BLE controller
+  // and NimBLE stack continue to operate correctly — they register their own
+  // PM locks that prevent sleep during active BLE events.
+  esp_pm_config_esp32c3_t pm_config = {
+    .max_freq_mhz      = 160,
+    .min_freq_mhz      = 10,
+    .light_sleep_enable = true,
+  };
+  esp_pm_configure(&pm_config);
 }
 
 // ---------------------------------------------------------------------------
@@ -237,9 +247,5 @@ void loop() {
   // Drive LED blink pattern and any pending flash animation
   ledManager.update();
 
-  if (ledManager.getStatus() == APP_CONFIG) {
-    delay(10);
-  } else {
-    sleepManager.sleep();
-  }
+  delay(10);
 }
