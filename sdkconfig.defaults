@@ -38,3 +38,5 @@ CONFIG_BT_CTRL_MAIN_XTAL_PU_DURING_LIGHT_SLEEP=y
 
 # Power down the Wi-Fi/BT MAC and baseband when the PHY is not in use.
 CONFIG_ESP_PHY_MAC_BB_PD=y
+
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
