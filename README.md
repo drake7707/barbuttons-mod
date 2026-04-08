@@ -122,6 +122,9 @@ Any other key code sends that key exactly once on long press.
 
 Unfortunately ADC1 only works with GPIO0-5 so I had to remap the pins. The legacy version is for devices with the original pin layout, the default is with the new pin layout and this time I checked the pin functions thoroughly.
 
+<img width="540" height="782" alt="image" src="https://github.com/user-attachments/assets/9d7ecb9c-9f42-4cfb-97fa-f834d5d2e1ec" />
+
+
 ### Build & flash
 
 1. Use platform.io with vscode to open the project
