@@ -122,12 +122,6 @@ Any other key code sends that key exactly once on long press.
 
 Unfortunately ADC1 only works with GPIO0-5 so I had to remap the pins. The legacy version is for devices with the original pin layout, the default is with the new pin layout and this time I checked the pin functions thoroughly.
 
-### Required libraries
-
-- [Keypad (v3.1.1)](https://github.com/Chris--A/Keypad)
-- [NimBLE-Arduino (v2.4.0)](https://github.com/h2zero/NimBLE-Arduino)
-- `WiFi`, `WebServer`, `Update`, `Preferences` — bundled with the Arduino ESP32 core
-
 ### Build & flash
 
 1. Use platform.io with vscode to open the project
