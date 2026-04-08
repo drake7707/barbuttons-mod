@@ -23,6 +23,8 @@ Based on the original BarButtons v1 firmware, this version replaces the STA-base
 | **OTA firmware update** | Upload a compiled `.bin` directly from the browser; device reboots automatically |
 | **NimBLE BLE keyboard** | HID keyboard over BLE with secure bonding (Secure Connections, Just Works); CCCD state persisted per peer |
 | **LED status indicator** | Blink pattern varies by state — see table below |
+| **Battery measurement** | Reads the voltage from a voltage divider (680kOhms - . - 220kOhms) and reports the battery percentage via bluetooth |
+| **Light sleep** | Uses FreeRTOS light sleep configuration to sleep when the cpu is idle, this significantly drops the power consumption from 30mA to a few µA. The BLE reporting window is however higher (50-100ms) to allow for idle time |
 
 ### LED blink patterns
 
@@ -107,15 +109,18 @@ Any other key code sends that key exactly once on long press.
 
 ### Pin assignments (ESP32-C3 Zero)
 
-| Signal | GPIO |
-|---|---|
-| LED | 6 |
-| Row 0 | 2 |
-| Row 1 | 1 |
-| Row 2 | 0 |
-| Col 0 | 3 |
-| Col 1 | 4 |
-| Col 2 | 5 |
+| Signal | GPIO (legacy) | GPIO |
+|---|---|---|
+| LED | 6 | 2 |
+| Row 0 | 2 | 8 |
+| Row 1 | 1 | 7 |
+| Row 2 | 0 | 6 |
+| Col 0 | 3 | 3 |
+| Col 1 | 4 | 4 |
+| Col 2 | 5 | 5 | 
+| Battery voltage divider | - | 0 |
+
+Unfortunately ADC1 only works with GPIO0-5 so I had to remap the pins. The legacy version is for devices with the original pin layout, the default is with the new pin layout and this time I checked the pin functions thoroughly.
 
 ### Required libraries
 
@@ -125,13 +130,10 @@ Any other key code sends that key exactly once on long press.
 
 ### Build & flash
 
-1. Install the **ESP32** board package in Arduino IDE (target board: `ESP32C3 Dev Module` or the equivalent Zero variant).
-2. Set **Tools → Partition Scheme** to:
-   > **Minimal SPIFFS (1.9 MB APP with OTA / 190 KB SPIFFS)**
-
-   This is required because the sketch exceeds the default 1.28 MB app partition.
-3. Set `const int DEBUG = 0;` before a production flash (saves flash and avoids waiting for USB-CDC on boot).
-4. Compile and upload via USB.
+1. Use platform.io with vscode to open the project
+2. Set `const int DEBUG = 0;` before a production flash.
+4. Compile.
+5. Upload via USB.
 
 ---
 
