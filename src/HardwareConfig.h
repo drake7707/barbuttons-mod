@@ -8,30 +8,32 @@
 // ---------------------------------------------------------------------------
 
 // Status LED
-const int LED_PIN = 6;
+const int LED_PIN_LEGACY = 6;
+const int LED_PIN = 2;
 
 // Keypad matrix — column drive lines.
-// Both modes currently use the same pins; having separate arrays means a
-// future hardware revision can diverge without touching any other file.
-static const uint8_t KEYPAD_COL_PINS_DEFAULT[3] = {3, 4, 5};  // battery disabled
-static const uint8_t KEYPAD_COL_PINS_BATTERY[3]  = {3, 4, 5};  // battery enabled
+static const uint8_t KEYPAD_COL_PINS_LEGACY[3] = {3, 4, 5};  // battery disabled
+static const uint8_t KEYPAD_COL_PINS[3]  = {3, 4, 5};  // battery enabled
+
+inline const uint8_t getLEDPin(bool isLegacy) {
+  return isLegacy ? LED_PIN_LEGACY : LED_PIN;
+}
 
 // Returns the correct column-pin array for the given battery mode.
-inline const uint8_t* getKeypadColPins(bool withBattery) {
-  return withBattery ? KEYPAD_COL_PINS_BATTERY : KEYPAD_COL_PINS_DEFAULT;
+inline const uint8_t* getKeypadColPins(bool isLegacy) {
+  return isLegacy ? KEYPAD_COL_PINS_LEGACY : KEYPAD_COL_PINS;
 }
 
-// Keypad row pins come in two flavours depending on whether the battery ADC
-// is enabled at runtime.
-//   Default (battery disabled): GPIO0 is available as keypad row 2.
-//   Battery enabled:            GPIO0 is reserved for ADC; row 2 moves to GPIO7.
-static const uint8_t KEYPAD_ROW_PINS_DEFAULT[3] = {2, 1, 0};  // battery disabled
-static const uint8_t KEYPAD_ROW_PINS_BATTERY[3] = {2, 1, 7};  // battery enabled
+// Keypad matrix — row drive lines. I moved the pins for the rows because ADC1 only works on GPIO0-5, and I wanted to use GPIO0 for battery voltage sensing. 
+// The legacy pinout is preserved for older hardware builds that don't have battery support.
+static const uint8_t KEYPAD_ROW_PINS_LEGACY[3] = {2, 1, 0};
+static const uint8_t KEYPAD_ROW_PINS[3] = {8, 7, 6};  
 
 // Returns the correct row-pin array for the given battery mode.
-inline const uint8_t* getKeypadRowPins(bool withBattery) {
-  return withBattery ? KEYPAD_ROW_PINS_BATTERY : KEYPAD_ROW_PINS_DEFAULT;
+inline const uint8_t* getKeypadRowPins(bool isLegacy) {
+  return isLegacy ? KEYPAD_ROW_PINS_LEGACY : KEYPAD_ROW_PINS;
 }
+
 
 // Battery voltage sense — GPIO0 = ADC1 channel 0 (only active when battery is enabled).
 // Voltage is read through a 680 kΩ / 220 kΩ voltage divider so that the

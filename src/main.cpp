@@ -31,7 +31,8 @@
 // ---------------------------------------------------------------------------
 // Build flags
 // ---------------------------------------------------------------------------
-const int DEBUG = 0;  // Set to 1 only when Serial monitor is attached
+const int DEBUG = 1;  // Set to 1 only when Serial monitor is attached
+const bool LEGACY = false; // Legacy has a different pin layout and no battery support
 
 // ---------------------------------------------------------------------------
 // Firmware version -- shown in the web config UI
@@ -204,7 +205,7 @@ extern "C" void app_main() {
   esp_netif_init();
   esp_event_loop_create_default();
 
-  ledManager.begin(LED_PIN);
+  
 
   configManager.begin(&ledManager, FIRMWARE_VERSION);
   configManager.loadKeymap();
@@ -214,6 +215,8 @@ extern "C" void app_main() {
 
   bleManager.begin(configManager.getBleName());
 
+  ledManager.begin(getLEDPin(LEGACY));
+
   // If "Clear BLE Bonds" was requested from the web UI, delete stored bonds
   // now that NimBLE is initialised. The flag was written before the reboot.
   if (configManager.isClearBondsRequested()) {
@@ -222,8 +225,8 @@ extern "C" void app_main() {
     if (DEBUG) printf("BLE bonds cleared on request.\n");
   }
 
-  buttonManager.setPinConfiguration(getKeypadRowPins(configManager.isBatteryEnabled()),
-                                    getKeypadColPins(configManager.isBatteryEnabled()));
+  buttonManager.setPinConfiguration(getKeypadRowPins(LEGACY),
+                                    getKeypadColPins(LEGACY));
   buttonManager.begin();
   applyKeymap();
   // Flash N times to indicate which keymap is active on boot
@@ -233,7 +236,7 @@ extern "C" void app_main() {
   buttonManager.setLongPressHandler(on_long_press);
   buttonManager.setComboHandler(on_combo);
 
-  if (configManager.isBatteryEnabled()) {
+  if (!LEGACY && configManager.isBatteryEnabled()) {
     batteryManager.begin(ADC_BATTERY_CHANNEL);
     batteryManager.setBatteryReadingHandler(on_battery_updated);
   }
@@ -254,7 +257,7 @@ extern "C" void app_main() {
 
   if (DEBUG) printf("Setup complete.\n");
 
-  const bool batteryEnabled = configManager.isBatteryEnabled();
+  const bool batteryEnabled = !LEGACY && configManager.isBatteryEnabled();
 
   // Main loop
   while (true) {
