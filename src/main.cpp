@@ -123,14 +123,13 @@ void start_config_mode()
   configManager.endConfigAP();
 
   // Restart BLE with the (possibly updated) device name
-  bleManager.begin(configManager.getBleName(), configManager.allowBLEPowerSaving());
+  bleManager.begin(configManager.getBleName(), configManager.allowBLEPowerSaving(), configManager.getMaxBLEConnections());
   ledManager.setStatus(APP_BT_DISCONNECTED);
   ledManager.resetLedState();
 
   if (DEBUG)
     printf("Config mode exited, BLE restarting\n");
 }
-
 
 std::string getCurrentOutputTarget()
 {
@@ -155,9 +154,18 @@ void toggleOutputTarget()
     ledManager.flashLed(1, 1000, 100);
     return;
   }
+  else if (connections.size() == 1)
+  {
+    if (DEBUG)
+      printf("Only one connection, staying on broadcast\n");
+    currentOutputTarget = "";
+    ledManager.flashLed(1, 1000, 100);
+    return;
+  }
 
   // If currently broadcasting → go to first device
-  if (currentOutputTarget.empty()) {
+  if (currentOutputTarget.empty())
+  {
     currentOutputTarget = connections[0];
     ledManager.flashLed(1, 150, 100);
   }
@@ -189,10 +197,9 @@ void toggleOutputTarget()
       }
     }
   }
-  if(DEBUG)
+  if (DEBUG)
     printf("Output target set to: %s\n", currentOutputTarget == "" ? "BROADCAST" : currentOutputTarget.c_str());
 }
-
 
 // ---------------------------------------------------------------------------
 // High-level button event callbacks -- registered with ButtonManager
@@ -264,7 +271,7 @@ void on_long_press(char btn)
 void on_combo(char held, char pressed)
 {
   if (DEBUG)
-      printf("Key combo: hold %c + press %c\n", held, pressed);
+    printf("Key combo: hold %c + press %c\n", held, pressed);
 
   if (held == '4')
   {
@@ -329,8 +336,9 @@ extern "C" void app_main()
   configManager.loadBleName();
   configManager.loadBatteryEnabled();
   configManager.loadBLEPowerSaving();
+  configManager.loadMaxBLEConnections();
 
-  bleManager.begin(configManager.getBleName(), configManager.allowBLEPowerSaving());
+  bleManager.begin(configManager.getBleName(), configManager.allowBLEPowerSaving(), configManager.getMaxBLEConnections());
 
   ledManager.begin(getLEDPin(LEGACY));
 

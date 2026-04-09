@@ -203,10 +203,33 @@ public:
     if (DEBUG) printf("BLE power saving: %s\n", _blePowerSaving ? "yes" : "no");
   }
 
+  void loadMaxBLEConnections() {
+    nvs_handle_t h;
+    uint8_t val = 1;
+    if (nvs_open("sys", NVS_READONLY, &h) == ESP_OK) {
+      nvs_get_u8(h, "maxbleconn", &val);
+      nvs_close(h);
+    }
+    _maxBLEConnections = (val >= 1 && val <= 3) ? val : 1;
+    if (DEBUG) printf("Max BLE connections: %d\n", _maxBLEConnections);
+  }
+
+  void saveMaxBLEConnections() {
+    nvs_handle_t h;
+    if (nvs_open("sys", NVS_READWRITE, &h) == ESP_OK) {
+      nvs_set_u8(h, "maxbleconn", _maxBLEConnections);
+      nvs_commit(h);
+      nvs_close(h);
+    }
+    if (DEBUG) printf("Max BLE connections saved: %d\n", _maxBLEConnections);
+  } 
+
   bool isBatteryEnabled() const { return _batteryEnabled; }
 
   bool allowBLEPowerSaving() const { return _blePowerSaving; }  
 
+  u_int8_t getMaxBLEConnections() const { return _maxBLEConnections; }
+  
   // ---------------------------------------------------------------------------
   // NVS -- "clear bonds" flag
   // ---------------------------------------------------------------------------
@@ -323,6 +346,7 @@ private:
   int               _activeKeymap = 1;
   bool              _batteryEnabled = false;
   bool              _blePowerSaving = false;
+  uint8_t           _maxBLEConnections = 1;
   char              _bleName[BLE_NAME_MAX_LEN + 1] = "RemoteKeyboard";
   httpd_handle_t    _server    = nullptr;
   esp_netif_t*      _apNetif   = nullptr;
@@ -475,6 +499,8 @@ private:
     _strReplace(html, "BATTERYENABLED", _batteryEnabled ? "checked" : "");
     _strReplace(html, "BLEPOWERSAVING", _blePowerSaving ? "checked" : "");
     _strReplace(html, "BATTERYSECTIONSTYLE", LEGACY ? "style=\"display:none\"" : "");
+    _strReplace(html, "MAXBLECONNECTIONS", std::to_string(_maxBLEConnections));
+
     _strReplace(html, "FWVER", std::string(_firmwareVersion));
 
     httpd_resp_set_type(req, "text/html");
@@ -518,6 +544,13 @@ private:
     _blePowerSaving = (blePowerSaveParam == "1");
     saveBLEPowerSaving();
 
+    std::string maxBleConnParam = _formParam(body.c_str(), "max_ble_connections");
+    int maxBleConn = atoi(maxBleConnParam.c_str());
+    if (maxBleConn >= 1 && maxBleConn <= 3) {
+      _maxBLEConnections = (uint8_t)maxBleConn;
+      saveMaxBLEConnections();
+    }
+    
     static const char resp[] =
       "<!DOCTYPE html><html>"
       "<head><meta name='viewport' content='width=device-width,initial-scale=1'></head>"

@@ -100,9 +100,9 @@ class BLEManager : public NimBLEServerCallbacks
 public:
   BLEManager(const char *mfr, uint8_t bat) : _mfr(mfr), _bat(bat) {}
 
-  void begin(const char *name, bool negotiatePowerSavingConnectionParameters)
+  void begin(const char *name, bool negotiatePowerSavingConnectionParameters, uint8_t max_connections)
   {
-
+    _max_connections = max_connections;
     _negotiatePowerSavingConnectionParameters = negotiatePowerSavingConnectionParameters;
 
     memset(&_rep, 0, sizeof(_rep));
@@ -246,6 +246,7 @@ private:
   const char *_mfr;
   uint8_t _bat;
   bool _negotiatePowerSavingConnectionParameters = true; // If true, request a power-saving connection interval after connecting. This reduces power consumption by allowing the ESP to go into light sleep, but has issues with older BLE stacks on android devices
+  uint8_t _max_connections = MAX_CONCURRENT_CONNECTIONS; // Maximum number of concurrent BLE connections before advertising stops. This allows multiple devices to be paired, but prevents new connections when the limit is reached.
 
   std::map<std::string, uint16_t> _connections; // map of peer address string to connection handle, used for directed advertising and tracking number of connections
   NimBLEServer *_srv = nullptr;
@@ -276,10 +277,10 @@ private:
 
   void doAdvertisingIfConnectionLimitNotReached()
   {
-    if (_connections.size() >= MAX_CONCURRENT_CONNECTIONS)
+    if (_connections.size() >= _max_connections)
     {
       if (DEBUG)
-        printf("Connection limit reached (%d), not advertising\n", MAX_CONCURRENT_CONNECTIONS);
+        printf("Connection limit reached (%d), not advertising\n", _max_connections);
       return;
     }
 
