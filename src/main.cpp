@@ -48,6 +48,7 @@ const char FIRMWARE_VERSION[] = "1.2.0";
 #include "ConfigManager.h"
 #include "ButtonManager.h"
 #include "BatteryManager.h"
+#include "main.h"
 
 // ---------------------------------------------------------------------------
 // Global manager instances
@@ -57,6 +58,8 @@ BLEManager bleManager("JaxeADV", 100);
 ConfigManager configManager;
 ButtonManager buttonManager;
 BatteryManager batteryManager;
+
+std::string currentOutputTarget = "";
 
 // Apply the currently active keymap to ButtonManager.
 // Call once in setup() and again whenever the active keymap changes.
@@ -128,6 +131,69 @@ void start_config_mode()
     printf("Config mode exited, BLE restarting\n");
 }
 
+
+std::string getCurrentOutputTarget()
+{
+  std::vector<std::string> connections = bleManager.getConnections();
+  auto it = std::find(connections.begin(), connections.end(), currentOutputTarget);
+
+  // If current target no longer exists → go back to broadcast
+  if (it == connections.end())
+  {
+    currentOutputTarget = "";
+    ledManager.flashLed(1, 1000, 100);
+  }
+  return currentOutputTarget;
+}
+
+void toggleOutputTarget()
+{
+  std::vector<std::string> connections = bleManager.getConnections();
+  if (connections.empty())
+  {
+    currentOutputTarget = "";
+    ledManager.flashLed(1, 1000, 100);
+    return;
+  }
+
+  // If currently broadcasting → go to first device
+  if (currentOutputTarget.empty()) {
+    currentOutputTarget = connections[0];
+    ledManager.flashLed(1, 150, 100);
+  }
+  else
+  {
+    auto it = std::find(connections.begin(), connections.end(), currentOutputTarget);
+
+    // If current target no longer exists → go back to broadcast
+    if (it == connections.end())
+    {
+      currentOutputTarget = "";
+      ledManager.flashLed(1, 1000, 100);
+    }
+    else
+    {
+      size_t index = std::distance(connections.begin(), it);
+      index++;
+
+      if (index >= connections.size())
+      {
+        // Wrap back to broadcast (empty string)
+        currentOutputTarget = "";
+        ledManager.flashLed(1, 1000, 100);
+      }
+      else
+      {
+        currentOutputTarget = connections[index];
+        ledManager.flashLed(index + 1, 150, 100);
+      }
+    }
+  }
+  if(DEBUG)
+    printf("Output target set to: %s\n", currentOutputTarget == "" ? "BROADCAST" : currentOutputTarget.c_str());
+}
+
+
 // ---------------------------------------------------------------------------
 // High-level button event callbacks -- registered with ButtonManager
 // ---------------------------------------------------------------------------
@@ -155,9 +221,11 @@ void on_short_press(char btn)
     if (shortKey == 0)
       return;
 
+    auto currentTarget = getCurrentOutputTarget();
+
     if (DEBUG)
       printf("Short press: %c -> key=0x%02X (%d)\n", btn, shortKey, shortKey);
-    bleManager.write(shortKey);
+    bleManager.write(currentTarget, shortKey);
     ledManager.flashLed(1, 150, 0);
   }
 }
@@ -180,12 +248,14 @@ void on_long_press(char btn)
   if (idx < 0)
     return;
 
+  auto currentTarget = getCurrentOutputTarget();
+
   uint8_t longKey = configManager.getLongKey(idx);
   if (DEBUG)
-    printf("Long press: %c -> key=0x%02X (%d)\n", btn, longKey, longKey);
+    printf("Long press: %c -> key=0x%02X (%d) to target %s\n", btn, longKey, longKey, currentTarget == "" ? "BROADCAST" : currentTarget.c_str());
   if (longKey != 0)
   {
-    bleManager.write(longKey);
+    bleManager.write(currentTarget, longKey);
     ledManager.flashLed(1, 150, 0);
   }
 }
@@ -193,24 +263,35 @@ void on_long_press(char btn)
 // Combo: 'pressed' was pressed while 'held' was already active
 void on_combo(char held, char pressed)
 {
+  if (DEBUG)
+      printf("Key combo: hold %c + press %c\n", held, pressed);
+
   if (held == '4')
   {
-    int newKeymap = -1;
-    if (pressed == '1')
-      newKeymap = 1;
-    else if (pressed == '2')
-      newKeymap = 2;
-    else if (pressed == '3')
-      newKeymap = 3;
+    if (pressed >= '1' && pressed <= '3')
+      toggleKeymap(pressed);
+    else if (pressed == '5')
+      toggleOutputTarget();
+  }
+}
 
-    if (newKeymap > 0)
-    {
-      if (DEBUG)
-        printf("Key combo: hold 4 + press %c -> keymap %d\n", pressed, newKeymap);
-      configManager.setActiveKeymap(newKeymap);
-      applyKeymap();
-      ledManager.flashLed(newKeymap, 150, 100);
-    }
+void toggleKeymap(char pressed)
+{
+  int newKeymap = -1;
+  if (pressed == '1')
+    newKeymap = 1;
+  else if (pressed == '2')
+    newKeymap = 2;
+  else if (pressed == '3')
+    newKeymap = 3;
+
+  if (newKeymap > 0)
+  {
+    if (DEBUG)
+      printf("Key combo: hold 4 + press %c -> keymap %d\n", pressed, newKeymap);
+    configManager.setActiveKeymap(newKeymap);
+    applyKeymap();
+    ledManager.flashLed(newKeymap, 150, 100);
   }
 }
 

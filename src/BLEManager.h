@@ -10,8 +10,14 @@
 #include "KeyCodes.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <map>
+#include <algorithm>
 
 extern const int DEBUG;
+
+static const int MAX_ADVERTISING_DURATION_AFTER_ALREADY_CONNECTED_MS = 60000;
+
+static const int MAX_CONCURRENT_CONNECTIONS = 2;
 
 // ---------------------------------------------------------------------------
 // Combined HID report descriptor:
@@ -110,7 +116,8 @@ public:
 
     _srv = NimBLEDevice::createServer();
     _srv->setCallbacks(this);
-    _srv->advertiseOnDisconnect(true); // NimBLE restarts advertising automatically
+
+    _srv->advertiseOnDisconnect(false); // we manage advertising ourselves to control directed vs undirected
 
     _hid = new NimBLEHIDDevice(_srv);
     _input = _hid->getInputReport(1);
@@ -136,54 +143,51 @@ public:
     // If a bonded peer exists, use directed advertising so Android/Windows
     // auto-reconnects without user interaction after a device reset.
     // After the directed window expires NimBLE falls back to undirected advertising.
-    if (NimBLEDevice::getNumBonds() > 0)
-    {
-      NimBLEAddress peer = NimBLEDevice::getBondedAddress(0);
-      if (DEBUG)
-      {
-        printf("Directed adv to bonded peer: ");
-        printf("%s\n", peer.toString().c_str());
-      }
-      adv->start(0, &peer);
-    }
-    else
-    {
-      adv->start();
-    }
+    doAdvertisingIfConnectionLimitNotReached();
   }
 
   void end()
   {
     NimBLEDevice::deinit(false); // false = keep bond data in NVS
-    _connected = false;
+    _connections.clear();
     _srv = nullptr;
     _hid = nullptr;
     _input = nullptr;
     _inputCC = nullptr;
   }
 
-  bool isConnected() { return _connected; }
+  bool isConnected() { return !_connections.empty(); }
+
+  std::vector<std::string> getConnections()
+  {
+    std::vector<std::string> peers;
+    for (const auto &pair : _connections)
+    {
+      peers.push_back(pair.first);
+    }
+    return peers;
+  }
 
   // Send a single key tap (press + immediate release).
   // Accepts any KEY_* constant, including media keys (KEY_MEDIA_PLAY_PAUSE, etc.).
-  void write(uint8_t key)
+  void write(std::string &target, uint8_t key)
   {
     if (DEBUG)
       printf("[BLE] write: key=0x%02X (%d)\n", key, key);
     if (isMediaKey(key))
     {
-      pressMedia(key);
+      pressMedia(target, key);
       vTaskDelay(pdMS_TO_TICKS(10));
-      releaseAllMedia();
+      releaseAllMedia(target);
       return;
     }
-    press(key);
+    press(target, key);
     vTaskDelay(pdMS_TO_TICKS(10));
-    releaseAll();
+    releaseAll(target);
   }
 
   // Hold a regular keyboard key down (accumulates modifiers / keys until releaseAll).
-  void press(uint8_t key)
+  void press(std::string &target, uint8_t key)
   {
     uint8_t scan = 0, modBit = 0;
     toHID(key, scan, modBit);
@@ -198,32 +202,32 @@ public:
           _rep.keys[i] = scan;
           break;
         }
-    send();
+    send(target);
   }
 
   // Release all held keyboard keys.
-  void releaseAll()
+  void releaseAll(std::string &target)
   {
     memset(&_rep, 0, sizeof(_rep));
-    send();
+    send(target);
   }
 
   // Hold a media key down until releaseAllMedia() is called.
   // Accepts KEY_MEDIA_* constants (play/pause, stop, next, prev, vol up/down, mute).
-  void pressMedia(uint8_t key)
+  void pressMedia(std::string &target, uint8_t key)
   {
     uint16_t usage = mediaKeyToUsage(key);
     if (DEBUG)
       printf("[BLE] pressMedia: key=0x%02X usage=0x%04X\n", key, usage);
     _repCC = usage;
-    sendCC();
+    sendCC(target);
   }
 
   // Release all held media keys.
-  void releaseAllMedia()
+  void releaseAllMedia(std::string &target)
   {
     _repCC = 0;
-    sendCC();
+    sendCC(target);
   }
 
   // Update the BLE Battery Service level (0–100 %).
@@ -232,7 +236,7 @@ public:
   {
     _bat = level;
     if (_hid)
-      _hid->setBatteryLevel(level, _connected);
+      _hid->setBatteryLevel(level, !_connections.empty());
   }
 
   // Delete all stored BLE bonds from NVS
@@ -242,7 +246,8 @@ private:
   const char *_mfr;
   uint8_t _bat;
   bool _negotiatePowerSavingConnectionParameters = true; // If true, request a power-saving connection interval after connecting. This reduces power consumption by allowing the ESP to go into light sleep, but has issues with older BLE stacks on android devices
-  bool _connected = false;
+
+  std::map<std::string, uint16_t> _connections; // map of peer address string to connection handle, used for directed advertising and tracking number of connections
   NimBLEServer *_srv = nullptr;
   NimBLEHIDDevice *_hid = nullptr;
   NimBLECharacteristic *_input = nullptr;   // HID Report ID 1 — keyboard input
@@ -250,11 +255,85 @@ private:
   KbReport _rep = {};                       // Current keyboard report state
   uint16_t _repCC = 0;                      // Current Consumer Control report state (USB usage code)
 
-  void onConnect(NimBLEServer *, NimBLEConnInfo &conn_info) override
+  NimBLEAddress getFirstUnconnectedBond()
   {
-    _connected = true;
+    int count = NimBLEDevice::getNumBonds();
+
+    for (int i = 0; i < count; i++)
+    {
+      NimBLEAddress addr = NimBLEDevice::getBondedAddress(i);
+      std::string mac = addr.toString();
+
+      bool isConnected = _connections.find(mac) != _connections.end();
+      if (!isConnected)
+      {
+        return addr;
+      }
+    }
+
+    return NimBLEAddress(); // invalid / empty
+  }
+
+  void doAdvertisingIfConnectionLimitNotReached()
+  {
+    if (_connections.size() >= MAX_CONCURRENT_CONNECTIONS)
+    {
+      if (DEBUG)
+        printf("Connection limit reached (%d), not advertising\n", MAX_CONCURRENT_CONNECTIONS);
+      return;
+    }
+
     if (DEBUG)
-      printf("BLE connected\n");
+      printf("Starting advertising with %d connection%s\n", (int)_connections.size(), _connections.size() == 1 ? "" : "s");
+
+    NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
+    adv->setAppearance(HID_KEYBOARD);
+    adv->addServiceUUID(_hid->getHidService()->getUUID());
+
+    // keep advertising if no connections, otherwise have a 60sec window for additional connections before stopping advertising to save power. This allows multiple devices to be paired.
+    int max_adv_duration = _connections.empty() ? 0 : MAX_ADVERTISING_DURATION_AFTER_ALREADY_CONNECTED_MS;
+
+    // If a bonded peer exists, use directed advertising so Android/Windows
+    // auto-reconnects without user interaction after a device reset.
+    // After the directed window expires NimBLE falls back to undirected advertising.
+    if (NimBLEDevice::getNumBonds() > 0)
+    {
+      NimBLEAddress peer = getFirstUnconnectedBond();
+      if (peer == NimBLEAddress())
+      {
+        if (DEBUG)
+          printf("All bonded peers are currently connected, starting undirected advertising for %d ms\n", max_adv_duration);
+        adv->start(max_adv_duration);
+        return;
+      }
+
+      if (DEBUG)
+      {
+        printf("Directed adv to bonded peer: ");
+        printf("%s\n", peer.toString().c_str());
+      }
+
+      if (DEBUG)
+        printf("Directed advertising for %d ms\n", max_adv_duration);
+      adv->start(max_adv_duration, &peer);
+    }
+    else
+    {
+      // no bonds, untargeted advertising
+      if (DEBUG)
+        printf("No bonded peers, starting undirected advertising for %d ms\n", max_adv_duration);
+      adv->start(max_adv_duration);
+    }
+  }
+
+  void onConnect(NimBLEServer *server, NimBLEConnInfo &conn_info) override
+  {
+    _connections[conn_info.getIdAddress().toString()] = conn_info.getConnHandle();
+
+    if (DEBUG)
+      printf("BLE connected to %s\n", conn_info.getIdAddress().toString().c_str());
+
+    doAdvertisingIfConnectionLimitNotReached();
 
     if (_negotiatePowerSavingConnectionParameters)
     {
@@ -270,38 +349,54 @@ private:
     }
   }
 
-  void onDisconnect(NimBLEServer *, NimBLEConnInfo &, int reason) override
+  void onDisconnect(NimBLEServer *, NimBLEConnInfo &conn_info, int reason) override
   {
-    _connected = false;
+
+    _connections.erase(conn_info.getIdAddress().toString());
     if (DEBUG)
       printf("BLE disconnected (reason %d), bonds in NVS: %d\n",
              reason, NimBLEDevice::getNumBonds());
-    // advertising restart handled automatically by advertiseOnDisconnect(true)
+
+    doAdvertisingIfConnectionLimitNotReached();
   }
 
   void onAuthenticationComplete(NimBLEConnInfo &conn_info) override
   {
     if (DEBUG)
-      printf("Auth complete — bonded: %s, bonds stored: %d\n",
+      printf("Auth complete for %s — bonded: %s, bonds stored: %d\n, connections=%d",
+             conn_info.getIdAddress().toString().c_str(),
              conn_info.isBonded() ? "yes" : "no",
-             NimBLEDevice::getNumBonds());
+             NimBLEDevice::getNumBonds(),
+             (int)_connections.size());
   }
 
   // Transmits the current keyboard report over BLE.
-  void send()
+  void send(std::string &target)
   {
     if (DEBUG)
     {
-      printf("[BLE] send: connected=%d input=%s | mod=0x%02X keys=[%02X %02X %02X %02X %02X %02X]\n",
-             (int)_connected, _input ? "ok" : "NULL",
+      printf("[BLE] send: connections=%d input=%s | mod=0x%02X keys=[%02X %02X %02X %02X %02X %02X], target=%s\n",
+             (int)_connections.size(), _input ? "ok" : "NULL",
              _rep.mod,
              _rep.keys[0], _rep.keys[1], _rep.keys[2],
-             _rep.keys[3], _rep.keys[4], _rep.keys[5]);
+             _rep.keys[3], _rep.keys[4], _rep.keys[5], target.c_str());
     }
-    if (_connected && _input)
+    if (!_connections.empty() && _input)
     {
       _input->setValue((uint8_t *)&_rep, sizeof(_rep));
-      _input->notify();
+
+      if (target == "")
+        _input->notify(); // broadcast to all connected peers
+      else if (_connections.find(target) != _connections.end())
+      {
+        auto handle = _connections[target];
+        _input->notify(handle);
+      }
+      else
+      {
+        if (DEBUG)
+          printf("[BLE] Warning: target %s not found among connected peers\n", target.c_str());
+      }
     }
   }
 
@@ -334,16 +429,28 @@ private:
   }
 
   // Transmits the current Consumer Control (media key) report over BLE.
-  void sendCC()
+  void sendCC(std::string &target)
   {
     if (DEBUG)
-      printf("[BLE] sendCC: connected=%d inputCC=%s | usage=0x%04X\n",
-             (int)_connected, _inputCC ? "ok" : "NULL", _repCC);
-    if (_connected && _inputCC)
+      printf("[BLE] sendCC: connections=%d inputCC=%s | usage=0x%04X, target=%s\n",
+             (int)_connections.size(), _inputCC ? "ok" : "NULL", _repCC, target.c_str());
+    if (!_connections.empty() && _inputCC)
     {
       uint8_t buf[2] = {(uint8_t)(_repCC & 0xFF), (uint8_t)(_repCC >> 8)};
       _inputCC->setValue(buf, 2);
-      _inputCC->notify();
+
+      if (target == "")
+        _inputCC->notify(); // broadcast to all connected peers
+      else if (_connections.find(target) != _connections.end())
+      {
+        auto handle = _connections[target];
+        _inputCC->notify(handle);
+      }
+      else
+      {
+        if (DEBUG)
+          printf("[BLE] Warning: target %s not found among connected peers\n", target.c_str());
+      }
     }
   }
 
