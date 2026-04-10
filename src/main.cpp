@@ -31,8 +31,8 @@
 // ---------------------------------------------------------------------------
 // Build flags
 // ---------------------------------------------------------------------------
-const int DEBUG = 1;       // Set to 1 only when Serial monitor is attached
-const bool LEGACY = false; // Legacy has a different pin layout and no battery support
+extern const int DEBUG = 1;       // Set to 1 only when Serial monitor is attached
+extern const bool LEGACY = false; // Legacy has a different pin layout and no battery support
 
 // ---------------------------------------------------------------------------
 // Firmware version -- shown in the web config UI
@@ -331,12 +331,7 @@ extern "C" void app_main()
   esp_event_loop_create_default();
 
   configManager.begin(&ledManager, FIRMWARE_VERSION);
-  configManager.loadKeymap();
-  configManager.loadActiveKeymap();
-  configManager.loadBleName();
-  configManager.loadBatteryEnabled();
-  configManager.loadBLEPowerSaving();
-  configManager.loadMaxBLEConnections();
+  configManager.loadAll();
 
   bleManager.begin(configManager.getBleName(), configManager.allowBLEPowerSaving(), configManager.getMaxBLEConnections());
 
