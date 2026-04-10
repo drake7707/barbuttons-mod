@@ -170,13 +170,13 @@
             <p class="hint">1&#8211;32 printable ASCII characters &mdash; shown in the Bluetooth pairing dialog.</p>
          </div>
 
-         <div class="field" BATTERYSECTIONSTYLE>
-            <label><input type="checkbox" name="battery_enabled" value="1" BATTERYENABLED> Enable battery level
+         <div class="field" style="BATTERYSECTIONSTYLE">
+            <label><input type="checkbox" name="battery_enabled" value="1" data-checked="BATTERYENABLED"> Enable battery level
             reading</label>
             <p class="hint">Reads the cell voltage and reports charge percentage over BLE.
             </p>
 
-            <label><input type="checkbox" name="ble_power_saving" value="1" BLEPOWERSAVING> Enable BLE power saving</label>
+            <label><input type="checkbox" name="ble_power_saving" value="1" data-checked="BLEPOWERSAVING"> Enable BLE power saving</label>
             <p class="hint">Enabling this option allows the device and phone to negotiate power-saving connection parameters, which can significantly reduce battery drain when idle. If you notice issues with the device disconnecting or failing to reconnect after a period of inactivity, try disabling this option.
             </p>
          </div>
@@ -223,6 +223,11 @@
            var b = document.getElementById('bondBtn');
            b.value = 'Clearing\u2026'; b.disabled = true;
          };
+
+         document.querySelectorAll("input[data-checked]").forEach(el => {
+            el.checked = el.dataset.checked === "true";
+         });
+
          var DS = [DEFAULTSHORT];
          var DL = [DEFAULTLONG];
          var KM = [
