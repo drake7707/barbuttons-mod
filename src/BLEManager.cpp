@@ -65,14 +65,14 @@ static const uint8_t _asciiToHid[95] = {
     0xAF, 0xB1, 0xB0, 0xB5                                      // {-~  123-126
 };
 
-BLEManager::BLEManager(const char *mfr, uint8_t bat) : _mfr(mfr), _bat(bat) {}
+BLEManager::BLEManager(const char *mfr, uint8_t bat) : _manufacturer(mfr), _battery(bat) {}
 
 void BLEManager::begin(const char *name, bool negotiatePowerSavingConnectionParameters, uint8_t max_connections)
 {
-  _max_connections = max_connections;
+  _maxConnections = max_connections;
   _negotiatePowerSavingConnectionParameters = negotiatePowerSavingConnectionParameters;
 
-  memset(&_rep, 0, sizeof(_rep));
+  memset(&_report, 0, sizeof(_report));
   NimBLEDevice::init(name);
   // init() must come first. setSecurityAuth() after init() sets bond=true,
   // MITM=true, SC=true. The IO capability is left at NimBLE's default —
@@ -81,21 +81,21 @@ void BLEManager::begin(const char *name, bool negotiatePowerSavingConnectionPara
   if (DEBUG)
     printf("Bonds in NVS: %d\n", NimBLEDevice::getNumBonds());
 
-  _srv = NimBLEDevice::createServer();
-  _srv->setCallbacks(this);
+  _server = NimBLEDevice::createServer();
+  _server->setCallbacks(this);
 
-  _srv->advertiseOnDisconnect(false); // we manage advertising ourselves to control directed vs undirected
+  _server->advertiseOnDisconnect(false); // we manage advertising ourselves to control directed vs undirected
 
-  _hid = new NimBLEHIDDevice(_srv);
+  _hid = new NimBLEHIDDevice(_server);
   _input = _hid->getInputReport(1);
   _inputCC = _hid->getInputReport(2);
 
-  _hid->setManufacturer(_mfr);
+  _hid->setManufacturer(_manufacturer);
   _hid->setPnp(0x02, 0xe502, 0xa111, 0x0210);
   _hid->setHidInfo(0x00, 0x02);
   _hid->setReportMap((uint8_t *)_hidReportDesc, sizeof(_hidReportDesc));
   _hid->startServices();
-  _hid->setBatteryLevel(_bat);
+  _hid->setBatteryLevel(_battery);
 
   NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
   adv->setAppearance(HID_KEYBOARD);
@@ -117,7 +117,7 @@ void BLEManager::end()
 {
   NimBLEDevice::deinit(false); // false = keep bond data in NVS
   _connections.clear();
-  _srv = nullptr;
+  _server = nullptr;
   _hid = nullptr;
   _input = nullptr;
   _inputCC = nullptr;
@@ -158,12 +158,12 @@ void BLEManager::press(std::string &target, uint8_t key)
   if (DEBUG)
     printf("[BLE] press: key=0x%02X -> scan=0x%02X mod=0x%02X\n", key, scan, modBit);
   if (modBit)
-    _rep.mod |= modBit;
+    _report.mod |= modBit;
   if (scan)
     for (int i = 0; i < 6; i++)
-      if (!_rep.keys[i])
+      if (!_report.keys[i])
       {
-        _rep.keys[i] = scan;
+        _report.keys[i] = scan;
         break;
       }
   send(target);
@@ -171,7 +171,7 @@ void BLEManager::press(std::string &target, uint8_t key)
 
 void BLEManager::releaseAll(std::string &target)
 {
-  memset(&_rep, 0, sizeof(_rep));
+  memset(&_report, 0, sizeof(_report));
   send(target);
 }
 
@@ -180,19 +180,19 @@ void BLEManager::pressMedia(std::string &target, uint8_t key)
   uint16_t usage = mediaKeyToUsage(key);
   if (DEBUG)
     printf("[BLE] pressMedia: key=0x%02X usage=0x%04X\n", key, usage);
-  _repCC = usage;
+  _reportCC = usage;
   sendCC(target);
 }
 
 void BLEManager::releaseAllMedia(std::string &target)
 {
-  _repCC = 0;
+  _reportCC = 0;
   sendCC(target);
 }
 
 void BLEManager::setBatteryLevel(uint8_t level)
 {
-  _bat = level;
+  _battery = level;
   if (_hid)
     _hid->setBatteryLevel(level, !_connections.empty());
 }
@@ -220,10 +220,10 @@ NimBLEAddress BLEManager::getFirstUnconnectedBond()
 
 void BLEManager::doAdvertisingIfConnectionLimitNotReached()
 {
-  if (_connections.size() >= _max_connections)
+  if (_connections.size() >= _maxConnections)
   {
     if (DEBUG)
-      printf("Connection limit reached (%d), not advertising\n", _max_connections);
+      printf("Connection limit reached (%d), not advertising\n", _maxConnections);
     return;
   }
 
@@ -284,7 +284,7 @@ void BLEManager::onConnect(NimBLEServer *server, NimBLEConnInfo &conn_info)
     // Reduce connection interval to 50–100 ms (from default 7.5 ms) to save power.
     NimBLEAttValue params;
     // Use NimBLE's updateConnParams: min=40, max=80 (units of 1.25 ms = 50–100 ms)
-    _srv->updateConnParams(conn_info.getConnHandle(), 40, 80, 4, 400);
+    _server->updateConnParams(conn_info.getConnHandle(), 40, 80, 4, 400);
     printf("Requested power-saving connection parameters: interval 50–100 ms, latency 4, timeout 4 s\n");
   }
   else
@@ -319,13 +319,13 @@ void BLEManager::send(std::string &target)
   {
     printf("[BLE] send: connections=%d input=%s | mod=0x%02X keys=[%02X %02X %02X %02X %02X %02X], target=%s\n",
            (int)_connections.size(), _input ? "ok" : "NULL",
-           _rep.mod,
-           _rep.keys[0], _rep.keys[1], _rep.keys[2],
-           _rep.keys[3], _rep.keys[4], _rep.keys[5], target.c_str());
+           _report.mod,
+           _report.keys[0], _report.keys[1], _report.keys[2],
+           _report.keys[3], _report.keys[4], _report.keys[5], target.c_str());
   }
   if (!_connections.empty() && _input)
   {
-    _input->setValue((uint8_t *)&_rep, sizeof(_rep));
+    _input->setValue((uint8_t *)&_report, sizeof(_report));
 
     if (target == "")
       _input->notify(); // broadcast to all connected peers
@@ -346,10 +346,10 @@ void BLEManager::sendCC(std::string &target)
 {
   if (DEBUG)
     printf("[BLE] sendCC: connections=%d inputCC=%s | usage=0x%04X, target=%s\n",
-           (int)_connections.size(), _inputCC ? "ok" : "NULL", _repCC, target.c_str());
+           (int)_connections.size(), _inputCC ? "ok" : "NULL", _reportCC, target.c_str());
   if (!_connections.empty() && _inputCC)
   {
-    uint8_t buf[2] = {(uint8_t)(_repCC & 0xFF), (uint8_t)(_repCC >> 8)};
+    uint8_t buf[2] = {(uint8_t)(_reportCC & 0xFF), (uint8_t)(_reportCC >> 8)};
     _inputCC->setValue(buf, 2);
 
     if (target == "")

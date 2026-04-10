@@ -62,7 +62,7 @@ from rjsmin import jsmin
 
 
 def _minify(html: str) -> str:
-    return html # temporary because issues with minify
+    #return html # temporary because issues with minify
 
     soup = BeautifulSoup(html, "html.parser")
 
@@ -90,12 +90,12 @@ def _minify(html: str) -> str:
     html_str = str(soup)
 
     # Minify HTML
-    html_str = htmlmin.minify(
-        html_str,
-        remove_comments=True,
-        remove_empty_space=True,
-        reduce_boolean_attributes=True
-    )
+    # html_str = htmlmin.minify(
+    #     html_str,
+    #     remove_comments=True,
+    #     remove_empty_space=True,
+    #     reduce_boolean_attributes=True
+    # )
 
     return html_str
 

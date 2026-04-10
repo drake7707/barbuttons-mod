@@ -56,7 +56,7 @@ public:
 
   void setButtonLongPressTime(char btn, uint32_t ms);
 
-  char oldPrint[64] = {};
+
   void print_keypad_state();
 
   void update();
@@ -71,6 +71,8 @@ private:
   static const uint8_t ROWS     = 3;
   static const uint8_t COLS     = 3;
   static const int     MAX_BTNS = 9;
+
+  char _oldPrint[64] = {};
 
   char    _buttons[ROWS][COLS] = {
     {'1', '5', '4'},

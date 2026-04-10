@@ -446,9 +446,9 @@ void ConfigManager::_handleRoot(httpd_req_t* req) {
     else               bn += c;
   }
   _strReplace(html, "BLENAME", bn);
-  _strReplace(html, "BATTERYENABLED", _batteryEnabled ? "checked" : "");
-  _strReplace(html, "BLEPOWERSAVING", _blePowerSaving ? "checked" : "");
-  _strReplace(html, "BATTERYSECTIONSTYLE", LEGACY ? "style=\"display:none\"" : "");
+  _strReplace(html, "BATTERYENABLED", _batteryEnabled ? "true" : "false");
+  _strReplace(html, "BLEPOWERSAVING", _blePowerSaving ? "true" : "false");
+  _strReplace(html, "BATTERYSECTIONSTYLE", LEGACY ? "display:none" : "");
   _strReplace(html, "MAXBLECONNECTIONS", std::to_string(_maxBLEConnections));
 
   _strReplace(html, "FWVER", std::string(_firmwareVersion));

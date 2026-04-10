@@ -4,10 +4,6 @@ ButtonManager::ButtonManager()
   : _keypad(makeKeymap(_buttons), _rowPins, _colPins, ROWS, COLS)
 {}
 
-void ButtonManager::setPinConfiguration(const uint8_t* rowPins, const uint8_t* colPins) {
-  memcpy(_rowPins, rowPins, sizeof(_rowPins));
-  memcpy(_colPins, colPins, sizeof(_colPins));
-}
 
 void ButtonManager::begin() {
   for (int i = 0; i < MAX_BTNS; i++) {
@@ -36,6 +32,11 @@ void ButtonManager::setButtonLongPressTime(char btn, uint32_t ms) {
   if (i >= 0) _longPressTime[i] = ms;
 }
 
+void ButtonManager::setPinConfiguration(const uint8_t* rowPins, const uint8_t* colPins) {
+  memcpy(_rowPins, rowPins, sizeof(_rowPins));
+  memcpy(_colPins, colPins, sizeof(_colPins));
+}
+
 void ButtonManager::print_keypad_state() {
   char str[64] = {};
   size_t pos = 0;
@@ -50,9 +51,9 @@ void ButtonManager::print_keypad_state() {
       pos += snprintf(str + pos, sizeof(str) - pos, "%c=%c ", btn, st);
     }
   }
-  if (strcmp(str, oldPrint) != 0) {
+  if (strcmp(str, _oldPrint) != 0) {
     printf("BUTTON STATE: %s\n", str);
-    strncpy(oldPrint, str, sizeof(oldPrint) - 1);
+    strncpy(_oldPrint, str, sizeof(_oldPrint) - 1);
   }
 }
 

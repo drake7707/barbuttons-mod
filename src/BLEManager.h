@@ -68,18 +68,18 @@ public:
   static void clearAllBonds();
 
 private:
-  const char *_mfr;
-  uint8_t _bat;
+  const char *_manufacturer;
+  uint8_t _battery;
   bool _negotiatePowerSavingConnectionParameters = true;
-  uint8_t _max_connections = MAX_CONCURRENT_CONNECTIONS;
+  uint8_t _maxConnections = MAX_CONCURRENT_CONNECTIONS;
 
   std::map<std::string, uint16_t> _connections;
-  NimBLEServer *_srv = nullptr;
+  NimBLEServer *_server = nullptr;
   NimBLEHIDDevice *_hid = nullptr;
   NimBLECharacteristic *_input = nullptr;
   NimBLECharacteristic *_inputCC = nullptr;
-  KbReport _rep = {};
-  uint16_t _repCC = 0;
+  KbReport _report = {};
+  uint16_t _reportCC = 0;
 
   NimBLEAddress getFirstUnconnectedBond();
   void doAdvertisingIfConnectionLimitNotReached();
