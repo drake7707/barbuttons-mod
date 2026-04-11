@@ -55,8 +55,10 @@ public:
   //
   // The advertisement is trigger-based (device info 0x44) and contains one
   // Button object (0x3A) per button slot; only the active button slot carries
-  // a non-zero event value.  Any ongoing HID advertising cycle is paused for
-  // the duration of the broadcast (~200 ms) and then restarted automatically.
+  // a non-zero event value.  If HID advertising was active at the time of the
+  // call it is paused for the broadcast duration (~2 s) and then restarted;
+  // if HID advertising was not running (budget exhausted, connection limit, …)
+  // it is NOT restarted so the idle state is preserved.
   void broadcastBTHomeButtonPress(uint8_t eventType, uint8_t button);
 
 private:
@@ -68,6 +70,9 @@ private:
   NimBLEHIDDevice *_hid = nullptr;
   std::string _deviceName;
   bool _btHomeBroadcastActive = false;
+  // True if HID advertising was running when a BTHome broadcast was started;
+  // used to decide whether to restart the HID cycle after the broadcast ends.
+  bool _restoreHIDAfterBTHome = false;
 
   // Advance to the next advertising step.
   void advance();
@@ -88,5 +93,6 @@ private:
   static const uint32_t DIRECTED_ADV_STEP_DURATION_MS = 1500;
 
   // Duration of a single BTHome broadcast in milliseconds.
-  static const uint32_t BTHOME_BROADCAST_DURATION_MS = 200;
+  // 2000 ms gives Home Assistant several scan windows to catch the advertisement.
+  static const uint32_t BTHOME_BROADCAST_DURATION_MS = 2000;
 };

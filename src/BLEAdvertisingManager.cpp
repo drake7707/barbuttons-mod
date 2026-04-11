@@ -67,14 +67,23 @@ void BLEAdvertisingManager::startCycle()
 void BLEAdvertisingManager::advance()
 {
   // If we just finished a BTHome broadcast, restore HID advertising data
-  // and restart the normal advertising cycle.
+  // and restart the normal advertising cycle only if it was running before
+  // the broadcast was triggered.
   if (_btHomeBroadcastActive)
   {
     _btHomeBroadcastActive = false;
     configureHIDAdvertising();
-    if (DEBUG)
-      printf("[BLE ADV] BTHome broadcast complete, restarting HID advertising cycle\n");
-    startCycle();
+    if (_restoreHIDAfterBTHome)
+    {
+      if (DEBUG)
+        printf("[BLE ADV] BTHome broadcast complete, restarting HID advertising cycle\n");
+      startCycle();
+    }
+    else
+    {
+      if (DEBUG)
+        printf("[BLE ADV] BTHome broadcast complete, HID advertising was not running — not restarting\n");
+    }
     return;
   }
 
@@ -159,8 +168,17 @@ void BLEAdvertisingManager::broadcastBTHomeButtonPress(uint8_t eventType, uint8_
 
   NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
 
-  if (adv->isAdvertising())
+  bool wasAdvertising = adv->isAdvertising();
+  if (wasAdvertising)
     adv->stop();
+
+  // Record whether HID advertising was running so we can restore it after the
+  // broadcast.  If a BTHome broadcast is already in flight (rapid button press)
+  // we keep the flag from the first press so the original intent is preserved:
+  // if HID was running when the first press fired, it should still be restarted
+  // once all BTHome broadcasts are done.
+  if (!_btHomeBroadcastActive)
+    _restoreHIDAfterBTHome = wasAdvertising;
 
   // ---------------------------------------------------------------------------
   // BTHome v2 service data payload
