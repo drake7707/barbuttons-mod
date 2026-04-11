@@ -11,17 +11,19 @@ static inline uint32_t millis_now() { return (uint32_t)(esp_timer_get_time() / 1
 // ---------------------------------------------------------------------------
 // AppStatus — shared application-state enum used by multiple managers
 // ---------------------------------------------------------------------------
-enum AppStatus {
-  APP_BT_DISCONNECTED = 0,  // Not connected to BT
-  APP_CONFIG          = 1,  // Config mode (AP active, rapid blink)
-  APP_CONNECTED       = 2,  // BT connected, main menu
-  APP_CONNECTED_BLINK = 3   // BT connected, keymap indicator flash
+enum AppStatus
+{
+  APP_BT_DISCONNECTED = 0, // Not connected to BT, advertising if not in config mode
+  APP_CONFIG = 1,          // Config mode (AP active, rapid blink)
+  APP_CONNECTED = 2,        // BT connected, main menu
+  APP_BT_CONNECTED_ADVERTISING = 3 // BT connected, advertising while already connected
 };
 
 // ---------------------------------------------------------------------------
 // StatusLedManager — manages the status LED blink patterns and app state
 // ---------------------------------------------------------------------------
-class StatusLedManager {
+class StatusLedManager
+{
 public:
   void begin(int pin);
 
@@ -31,7 +33,7 @@ public:
   void flashLed(int times, unsigned long length, unsigned long delayTime);
 
   void setStatus(AppStatus s) { _status = s; }
-  AppStatus getStatus()       { return _status; }
+  AppStatus getStatus() { return _status; }
 
   // Reset LED to off and restart the blink timer
   void resetLedState();
@@ -40,25 +42,23 @@ public:
   void update();
 
 private:
-  int       _pin                      = 0;
-  AppStatus _status                   = APP_BT_DISCONNECTED;
-  int       _ledState                 = 0;
-  uint32_t  _ledStateTime             = 0;
-  int       _keymapIndicatorCountdown = 0;
+  int _pin = 0;
+  AppStatus _status = APP_BT_DISCONNECTED;
+  int _ledState = 0;
+  uint32_t _ledStateTime = 0;
 
   // Non-blocking flash animation state
-  bool     _flashActive    = false;
-  int      _flashRemaining = 0;
-  bool     _flashLedOn     = false;
-  uint32_t _flashOnTime    = 0;
-  uint32_t _flashOffTime   = 0;
+  bool _flashActive = false;
+  int _flashRemaining = 0;
+  bool _flashLedOn = false;
+  uint32_t _flashOnTime = 0;
+  uint32_t _flashOffTime = 0;
   uint32_t _flashStateTime = 0;
 
   int _ledDelays[4][2] = {
-    {  500,  500 },  // APP_BT_DISCONNECTED
-    {  100, 3000 },  // APP_CONFIG
-    { 3000,  100 },  // APP_CONNECTED
-    { 3000,  100 }   // APP_CONNECTED_BLINK
+      {500, 500},  // APP_BT_DISCONNECTED
+      {100, 3000}, // APP_CONFIG
+      {0, 0},  // APP_CONNECTED
+      {2000, 100}  // APP_BT_CONNECTED_ADVERTISING
   };
-  int _keymapIndicatorLedDelays[2] = {100, 50};
 };

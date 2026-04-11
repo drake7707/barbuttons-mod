@@ -1,7 +1,5 @@
 #include "BLEManager.h"
 
-static const int MAX_ADVERTISING_DURATION_AFTER_ALREADY_CONNECTED_MS = 60000;
-
 // ---------------------------------------------------------------------------
 // Combined HID report descriptor:
 //   Report ID 1 — standard boot-compatible keyboard (8-byte report)
@@ -65,7 +63,8 @@ static const uint8_t _asciiToHid[95] = {
     0xAF, 0xB1, 0xB0, 0xB5                                      // {-~  123-126
 };
 
-BLEManager::BLEManager(const char *mfr, uint8_t bat) : _manufacturer(mfr), _battery(bat) {}
+BLEManager::BLEManager(const char *mfr, uint8_t bat)
+    : _manufacturer(mfr), _battery(bat), _advManager(_connections) {}
 
 void BLEManager::begin(const char *name, bool negotiatePowerSavingConnectionParameters, uint8_t max_connections)
 {
@@ -79,7 +78,7 @@ void BLEManager::begin(const char *name, bool negotiatePowerSavingConnectionPara
   // overriding it with NO_INPUT_OUTPUT prevents Android from bonding.
   NimBLEDevice::setSecurityAuth(true, true, true);
   if (DEBUG)
-    printf("Bonds in NVS: %d\n", NimBLEDevice::getNumBonds());
+    printf("[BLE] Bonds in NVS: %d\n", NimBLEDevice::getNumBonds());
 
   _server = NimBLEDevice::createServer();
   _server->setCallbacks(this);
@@ -93,24 +92,16 @@ void BLEManager::begin(const char *name, bool negotiatePowerSavingConnectionPara
   _hid->setManufacturer(_manufacturer);
   _hid->setPnp(0x02, 0xe502, 0xa111, 0x0210);
   _hid->setHidInfo(0x00, 0x02);
-  _hid->setReportMap((uint8_t *)_hidReportDesc, sizeof(_hidReportDesc));
-  _hid->startServices();
+  _hid->setReportMap((uint8_t *)_hidReportDesc, sizeof(_hidReportDesc));  
   _hid->setBatteryLevel(_battery);
 
-  NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
-  adv->setAppearance(HID_KEYBOARD);
-  adv->addServiceUUID(_hid->getHidService()->getUUID());
-
-  // Include device name in scan response so Android/Windows show it in
-  // the pairing list and recognise it as a keyboard.
-  NimBLEAdvertisementData scanData;
-  scanData.setName(name);
-  adv->setScanResponseData(scanData);
+  _advManager.begin(_hid, name, max_connections);
 
   // If a bonded peer exists, use directed advertising so Android/Windows
   // auto-reconnects without user interaction after a device reset.
-  // After the directed window expires NimBLE falls back to undirected advertising.
-  doAdvertisingIfConnectionLimitNotReached();
+  // Sequential bond advertising: tries each unconnected bond in turn before
+  // falling back to undirected advertising.
+  _advManager.startCycle();
 }
 
 void BLEManager::end()
@@ -124,6 +115,11 @@ void BLEManager::end()
 }
 
 bool BLEManager::isConnected() { return !_connections.empty(); }
+
+BLEAdvertisingManager& BLEManager::getAdvertisingManager()
+{
+  return _advManager;
+}
 
 std::vector<std::string> BLEManager::getConnections()
 {
@@ -199,85 +195,14 @@ void BLEManager::setBatteryLevel(uint8_t level)
 
 void BLEManager::clearAllBonds() { NimBLEDevice::deleteAllBonds(); }
 
-NimBLEAddress BLEManager::getFirstUnconnectedBond()
-{
-  int count = NimBLEDevice::getNumBonds();
-
-  for (int i = 0; i < count; i++)
-  {
-    NimBLEAddress addr = NimBLEDevice::getBondedAddress(i);
-    std::string mac = addr.toString();
-
-    bool isConnected = _connections.find(mac) != _connections.end();
-    if (!isConnected)
-    {
-      return addr;
-    }
-  }
-
-  return NimBLEAddress(); // invalid / empty
-}
-
-void BLEManager::doAdvertisingIfConnectionLimitNotReached()
-{
-  if (_connections.size() >= _maxConnections)
-  {
-    if (DEBUG)
-      printf("Connection limit reached (%d), not advertising\n", _maxConnections);
-    return;
-  }
-
-  if (DEBUG)
-    printf("Starting advertising with %d connection%s\n", (int)_connections.size(), _connections.size() == 1 ? "" : "s");
-
-  NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
-  adv->setAppearance(HID_KEYBOARD);
-  adv->addServiceUUID(_hid->getHidService()->getUUID());
-
-  // keep advertising if no connections, otherwise have a 60sec window for additional connections before stopping advertising to save power.
-  int max_adv_duration = _connections.empty() ? 0 : MAX_ADVERTISING_DURATION_AFTER_ALREADY_CONNECTED_MS;
-
-  // If a bonded peer exists, use directed advertising so Android/Windows
-  // auto-reconnects without user interaction after a device reset.
-  // After the directed window expires NimBLE falls back to undirected advertising.
-  if (NimBLEDevice::getNumBonds() > 0)
-  {
-    NimBLEAddress peer = getFirstUnconnectedBond();
-    if (peer == NimBLEAddress())
-    {
-      if (DEBUG)
-        printf("All bonded peers are currently connected, starting undirected advertising for %d ms\n", max_adv_duration);
-      adv->start(max_adv_duration);
-      return;
-    }
-
-    if (DEBUG)
-    {
-      printf("Directed adv to bonded peer: ");
-      printf("%s\n", peer.toString().c_str());
-    }
-
-    if (DEBUG)
-      printf("Directed advertising for %d ms\n", max_adv_duration);
-    adv->start(max_adv_duration, &peer);
-  }
-  else
-  {
-    // no bonds, untargeted advertising
-    if (DEBUG)
-      printf("No bonded peers, starting undirected advertising for %d ms\n", max_adv_duration);
-    adv->start(max_adv_duration);
-  }
-}
-
 void BLEManager::onConnect(NimBLEServer *server, NimBLEConnInfo &conn_info)
 {
   _connections[conn_info.getIdAddress().toString()] = conn_info.getConnHandle();
 
   if (DEBUG)
-    printf("BLE connected to %s\n", conn_info.getIdAddress().toString().c_str());
+    printf("[BLE] Connected to %s\n", conn_info.getIdAddress().toString().c_str());
 
-  doAdvertisingIfConnectionLimitNotReached();
+  _advManager.startCycle();
 
   if (_negotiatePowerSavingConnectionParameters)
   {
@@ -285,11 +210,11 @@ void BLEManager::onConnect(NimBLEServer *server, NimBLEConnInfo &conn_info)
     NimBLEAttValue params;
     // Use NimBLE's updateConnParams: min=40, max=80 (units of 1.25 ms = 50–100 ms)
     _server->updateConnParams(conn_info.getConnHandle(), 40, 80, 4, 400);
-    printf("Requested power-saving connection parameters: interval 50–100 ms, latency 4, timeout 4 s\n");
+    printf("[BLE] Requested power-saving connection parameters: interval 50–100 ms, latency 4, timeout 4 s\n");
   }
   else
   {
-    printf("Power-saving connection parameters negotiation disabled; using default BLE connection parameters\n");
+    printf("[BLE] Power-saving connection parameters negotiation disabled; using default BLE connection parameters\n");
   }
 }
 
@@ -297,16 +222,16 @@ void BLEManager::onDisconnect(NimBLEServer *, NimBLEConnInfo &conn_info, int rea
 {
   _connections.erase(conn_info.getIdAddress().toString());
   if (DEBUG)
-    printf("BLE disconnected (reason %d), bonds in NVS: %d\n",
+    printf("[BLE] Disconnected (reason %d), bonds in NVS: %d\n",
            reason, NimBLEDevice::getNumBonds());
 
-  doAdvertisingIfConnectionLimitNotReached();
+  _advManager.startCycle();
 }
 
 void BLEManager::onAuthenticationComplete(NimBLEConnInfo &conn_info)
 {
   if (DEBUG)
-    printf("Auth complete for %s — bonded: %s, bonds stored: %d\n, connections=%d",
+    printf("[BLE] Auth complete for %s — bonded: %s, bonds stored: %d connections=%d \n",
            conn_info.getIdAddress().toString().c_str(),
            conn_info.isBonded() ? "yes" : "no",
            NimBLEDevice::getNumBonds(),

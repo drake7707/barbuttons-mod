@@ -8,6 +8,7 @@
 #include <NimBLEHIDDevice.h>
 #include "HIDTypes.h"
 #include "KeyCodes.h"
+#include "BLEAdvertisingManager.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <map>
@@ -42,6 +43,8 @@ public:
   bool isConnected();
 
   std::vector<std::string> getConnections();
+
+  BLEAdvertisingManager& getAdvertisingManager();
 
   // Send a single key tap (press + immediate release).
   // Accepts any KEY_* constant, including media keys (KEY_MEDIA_PLAY_PAUSE, etc.).
@@ -81,8 +84,7 @@ private:
   KbReport _report = {};
   uint16_t _reportCC = 0;
 
-  NimBLEAddress getFirstUnconnectedBond();
-  void doAdvertisingIfConnectionLimitNotReached();
+  BLEAdvertisingManager _advManager;
 
   void onConnect(NimBLEServer *server, NimBLEConnInfo &conn_info) override;
   void onDisconnect(NimBLEServer *, NimBLEConnInfo &conn_info, int reason) override;
@@ -94,4 +96,6 @@ private:
   static bool     isMediaKey(uint8_t k);
   static uint16_t mediaKeyToUsage(uint8_t k);
   static void     toHID(uint8_t k, uint8_t &scan, uint8_t &mod);
+  
+  
 };

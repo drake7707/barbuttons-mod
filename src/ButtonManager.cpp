@@ -52,7 +52,7 @@ void ButtonManager::print_keypad_state() {
     }
   }
   if (strcmp(str, _oldPrint) != 0) {
-    printf("BUTTON STATE: %s\n", str);
+    printf("[BUTTON] BUTTON STATE: %s\n", str);
     strncpy(_oldPrint, str, sizeof(_oldPrint) - 1);
   }
 }
