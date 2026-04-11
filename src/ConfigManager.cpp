@@ -728,8 +728,8 @@ void ConfigManager::_handleSave(httpd_req_t *req)
         {
           _shortTgt[km][i] = TARGET_HID;
           std::string m = (tsv.size() > 2) ? tsv.substr(2) : "";
-          strncpy(_shortMac[km][i], m.c_str(), 17);
-          _shortMac[km][i][17] = '\0';
+          strncpy(_shortMac[km][i], m.c_str(), sizeof(_shortMac[km][i]) - 1);
+          _shortMac[km][i][sizeof(_shortMac[km][i]) - 1] = '\0';
         }
         else if (tsv[0] == '2')
         {
@@ -751,8 +751,8 @@ void ConfigManager::_handleSave(httpd_req_t *req)
         {
           _longTgt[km][i] = TARGET_HID;
           std::string m = (tlv.size() > 2) ? tlv.substr(2) : "";
-          strncpy(_longMac[km][i], m.c_str(), 17);
-          _longMac[km][i][17] = '\0';
+          strncpy(_longMac[km][i], m.c_str(), sizeof(_longMac[km][i]) - 1);
+          _longMac[km][i][sizeof(_longMac[km][i]) - 1] = '\0';
         }
         else if (tlv[0] == '2')
         {

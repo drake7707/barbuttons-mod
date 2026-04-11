@@ -237,6 +237,7 @@
          ];
          var curKm = ACTIVEKEYMAP;
          var TGTDATA = TARGETDATAJSON;
+         var TARGET_BTHOME = 2; // must match ConfigManager::TARGET_BTHOME
          // Key options: [code, label]
          var K = [
            [43, '+'], [45, '-'], [42, '*'], [47, '/'], [61, '='],
@@ -275,7 +276,7 @@
            TGTDATA.bonds.forEach(function (b) {
              h += '<option value="1:' + b + '"' + (type === 1 && mac === b ? ' selected' : '') + '>HID: ' + b + '</option>';
            });
-           h += '<option value="2"' + (type === 2 ? ' selected' : '') + '>BT Home broadcast</option>';
+           h += '<option value="' + TARGET_BTHOME + '"' + (type === TARGET_BTHOME ? ' selected' : '') + '>BT Home broadcast</option>';
            return h;
          }
 
@@ -285,7 +286,7 @@
            var kid = sel.getAttribute('data-key');
            if (kid) {
              var k = document.getElementById(kid);
-             if (k) k.style.display = sel.value === '2' ? 'none' : '';
+             if (k) k.style.display = sel.value === String(TARGET_BTHOME) ? 'none' : '';
            }
          }
 
@@ -299,7 +300,7 @@
              // Short press cell: key selector + target selector (all buttons)
              var ks_id = 'ks_' + km + '_' + i;
              var shortCell = '<td>'
-               + '<select id="' + ks_id + '" name="s' + km + '_' + i + '"' + (ST[i] === 2 ? ' style="display:none"' : '') + '>' + buildOpts(S[i], false) + '</select>'
+               + '<select id="' + ks_id + '" name="s' + km + '_' + i + '"' + (ST[i] === TARGET_BTHOME ? ' style="display:none"' : '') + '>' + buildOpts(S[i], false) + '</select>'
                + '<br><select name="ts' + km + '_' + i + '" data-key="' + ks_id + '" onchange="onTgtChange(this)">' + buildTargetOpts(ST[i], SM[i]) + '</select>'
                + '</td>';
              // Long press cell
@@ -312,7 +313,7 @@
              } else {
                var kl_id = 'kl_' + km + '_' + i;
                longCell = '<td>'
-                 + '<select id="' + kl_id + '" name="l' + km + '_' + i + '"' + (LT[i] === 2 ? ' style="display:none"' : '') + '>' + buildOpts(L[i], true) + '</select>'
+                 + '<select id="' + kl_id + '" name="l' + km + '_' + i + '"' + (LT[i] === TARGET_BTHOME ? ' style="display:none"' : '') + '>' + buildOpts(L[i], true) + '</select>'
                  + '<br><select name="tl' + km + '_' + i + '" data-key="' + kl_id + '" onchange="onTgtChange(this)">' + buildTargetOpts(LT[i], LM[i]) + '</select>'
                  + '</td>';
              }
