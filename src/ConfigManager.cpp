@@ -631,7 +631,7 @@ void ConfigManager::_handleRoot(httpd_req_t *req)
   if (json)
     cJSON_free(json);
 
-  httpd_resp_set_type(req, "text/html");
+  httpd_resp_set_type(req, "text/html; charset=utf-8");
   httpd_resp_send(req, html.c_str(), (ssize_t)html.size());
 }
 
