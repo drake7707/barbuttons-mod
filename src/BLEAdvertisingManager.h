@@ -93,6 +93,8 @@ private:
   static const uint32_t DIRECTED_ADV_STEP_DURATION_MS = 1500;
 
   // Duration of a single BTHome broadcast in milliseconds.
-  // 2000 ms gives Home Assistant several scan windows to catch the advertisement.
+  // 2000 ms is used (rather than a short ~200 ms burst) to give Home Assistant's
+  // passive BLE scanner multiple scan windows in which to catch the advertisement,
+  // making pickup reliable across different scan intervals and window sizes.
   static const uint32_t BTHOME_BROADCAST_DURATION_MS = 2000;
 };

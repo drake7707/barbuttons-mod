@@ -198,8 +198,10 @@ void BLEAdvertisingManager::broadcastBTHomeButtonPress(uint8_t eventType, uint8_
   // ---------------------------------------------------------------------------
   static const uint8_t DEVICE_INFO   = 0x44; // v2, trigger-based, no encryption
   static const uint8_t BUTTON_OBJ_ID = 0x3A; // BTHome Button object ID
+  // Payload: 1 device-info byte + 8 button objects (object-ID + value each).
+  static const int BTHOME_PAYLOAD_SIZE = 1 + 8 * 2;
 
-  uint8_t payload[1 + 8 * 2];
+  uint8_t payload[BTHOME_PAYLOAD_SIZE];
   payload[0] = DEVICE_INFO;
   for (int i = 0; i < 8; i++)
   {
