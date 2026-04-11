@@ -1,6 +1,6 @@
 # Description
 
-Remote bluetooth keyboard targeting an **ESP32-C3 Zero** microcontroller.
+Remote Bluetooth keyboard targeting an **ESP32-C3 Zero** microcontroller.
 
 ---
 
@@ -15,14 +15,19 @@ Based on the original [BarButtons](https://jaxeadv.com/barbuttons) v1 firmware, 
 | Feature | Description |
 |---|---|
 | **AP config mode** | Starts a WiFi AP (`RemoteKeyboard-Config` / `remotekeyboard`) on demand |
-| **Web keymap editor** | Browser UI at `http://192.168.4.1` to configure short and long press actions for all 8 buttons |
+| **Web keymap editor** | Configure Short Press and Long Press action (key + BLE target) for all 8 buttons across 3 keymap slots |
+| **Per-key BLE target** | Each button press can target: *use target selector*, *broadcast to all HID peers*, *a specific bonded HID peer*, or *BT Home advertisement* |
 | **Multiple keymaps** | Three independent keymap slots switchable on-device via Button 4 combos; active slot persisted across reboots |
-| **NVS persistence** | All settings (keymaps, active slot, BLE name) stored in flash via the `Preferences` library; survive reboots and firmware updates |
+| **NVS persistence** | All settings (keymaps, active slot, BLE name, battery/power flags) stored in ESP-IDF NVS flash; survive reboots and OTA updates |
 | **OTA firmware update** | Upload a compiled `.bin` directly from the browser; device reboots automatically |
 | **NimBLE BLE keyboard** | HID keyboard over BLE with secure bonding (Secure Connections, Just Works); CCCD state persisted per peer |
+| **BTHome support** | Send button presses to your Home Assistant 
+| **Multi-connection** | Up to 3 simultaneous BLE HID connections; cycle active target or broadcast to all with button combos |
 | **LED status indicator** | Blink pattern varies by state — see table below |
-| **Battery measurement** | Reads the voltage from a voltage divider (680kOhms - . - 220kOhms) and reports the battery percentage via bluetooth |
-| **Light sleep** | Uses FreeRTOS light sleep configuration to sleep when the cpu is idle, this significantly drops the power consumption from 30mA to a few µA. The BLE reporting window is however higher (50-100ms) to allow for idle time |
+| **Battery measurement** | Reads cell voltage via voltage divider (680 kΩ : 220 kΩ), reports percentage over BLE, and displays current voltage & percentage in the web config UI |
+| **BLE power saving** | Optional negotiation of low-power connection parameters to reduce idle current draw |
+| **Light sleep** | FreeRTOS tickless idle light sleep; drops CPU current from ~30 mA to a few µA when idle (BLE event window widened to 50–100 ms to allow idle time) |
+
 
 ### LED blink patterns
 
@@ -30,21 +35,30 @@ Based on the original [BarButtons](https://jaxeadv.com/barbuttons) v1 firmware, 
 |---|---|---|
 | BT disconnected | 500 ms | 500 ms |
 | Config mode | 100 ms | 3000 ms |
-| BT connected | LED off (flashes briefly on keypress) | — |
+| BT connected | LED off (brief flash on keypress) | — |
 
 ### Entering / exiting config mode
 
-1. **Hold Button 4 for ~5 seconds** (LED starts flashing rapidly).
+1. **Hold Button 4 for ~5 seconds** — LED switches to rapid config-mode blink.
 2. Connect to WiFi SSID **`RemoteKeyboard-Config`**, password **`remotekeyboard`**.
-3. Open **`http://192.168.4.1`** in a browser.
-4. **Keymap tab** — set Short Press / Long Press action per button for any of the three keymap slots, then click **Save & Reboot**.
-5. **Firmware tab** — choose a `.bin` and click **Flash Firmware** for OTA update.
-6. **BLE Bonds tab** — click **Clear BLE Bonds & Reboot** if the device no longer auto-connects.
-7. To exit config mode **without** any changes, tap Button 4 on the device.
+3. Open **`http://192.168.4.1`** in a browser (works on mobile).
+4. **Keymap Configuration** — set Short Press / Long Press action and BLE target per button for any of the three keymap slots, then click **Save & Reboot**.
+5. **Firmware Update** — choose a `.bin` and click **Flash Firmware** for OTA update.
+6. **BLE Bonds** — click **Clear BLE Bonds & Reboot** if the device no longer auto-connects.
+7. **Device Settings** — change the BLE device name, enable/disable battery reading and BLE power saving, set max connections.
+8. To exit config mode **without** saving any changes, tap Button 4 on the device.
 
 > **Note:** Button 4 long-press is reserved as the config trigger and cannot be remapped.
 
-<img width="954" height="1053" alt="afbeelding" src="https://github.com/user-attachments/assets/2c9cb0d5-f35d-43a9-8548-d1159ceaeb5e" />
+> **Battery info:** when battery reading is enabled, the config page shows the current battery voltage (mV) and charge percentage measured at the moment config mode was entered.
+
+### Web config UI
+
+The config interface is a single-file HTML page served directly from flash. It is:
+
+- **Mobile-first** — card-based layout, large tap targets, works comfortably on a phone or tablet.
+- **Per-button cards** — each of the 8 buttons has its own expandable card showing Short Press and Long Press settings side-by-side on wider screens, stacked on mobile.
+- **All settings in one page** — keymap editor, device settings (BLE name, battery, power saving, max connections), firmware OTA, bond management.
 
 ### Multiple keymaps
 
@@ -74,8 +88,9 @@ Targets are sorted on their MAC address so if 2 devices are connected, this firs
 
 | Combo | Action |
 |---|---|
-| Hold Button 4, then press Button 5 | Cycles between the differen targets or broadcast |
+| Hold Button 4, then press Button 5 | Cycle between individual connected targets (LED blink count = slot index, long blink is broadcat to all) |
 
+Each button mapping can also have its own fixed target (set in the web config UI), overriding the runtime target selector for that specific key.
 
 ### Application state diagram
 
@@ -95,14 +110,6 @@ stateDiagram-v2
 
     Config_Mode --> BT_Disconnected : tap Button 4 (exit without save)<br>or Save & Reboot web action<br>or Clear Bonds & Reboot web action<br>or Flash Firmware OTA web action
 ```
-
-> **Key behaviours by state**
->
-> | State | Short press (btns 1–3, 5–8) | Long press (btns 1–3, 5–8) | Button 4 short press | Button 4 long press | Combo 4+1/4+2/4+3 |
-> |---|---|---|---|---|---|
-> | **BT Disconnected** | Sends BLE key (silently dropped if host not yet connected) | Sends BLE key (if mapped; silently dropped if not connected) | `c` key | Enter config mode | Switch keymap |
-> | **BT Connected** | Sends BLE key | Sends BLE key (if mapped) | `c` key | Enter config mode | Switch keymap |
-> | **Config Mode** | No BLE action | No BLE action | Exit config mode | — (not processed) | — (not processed) |
 
 ### Button keymap defaults
 
@@ -142,10 +149,10 @@ Unfortunately ADC1 only works with GPIO0-5 so I had to remap the pins. The legac
 
 ### Build & flash
 
-1. Use platform.io with vscode to open the project
-2. Set `const int DEBUG = 0;` before a production flash.
-4. Compile.
-5. Upload via USB.
+1. Open the project in VSCode with the PlatformIO extension.
+2. Set `const int DEBUG = 0;` in `src/main.h` before a production build.
+3. Run **Build** (`pio run`) — the pre-build script automatically minifies `src/config.html` → `src/config.min.html`.
+4. Run **Upload** to flash via USB.
 
 ---
 

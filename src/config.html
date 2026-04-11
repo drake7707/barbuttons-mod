@@ -1,310 +1,371 @@
 <!DOCTYPE html>
-<html>
-   <head>
-      <meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Remote keyboard Keymap</title>
-      <style>
-         body {
-         font-family: sans-serif;
-         max-width: 740px;
-         margin: 20px auto;
-         padding: 0 12px
-         }
-         h2 {
-         color: #2c2c2c;
-         margin-bottom: 4px
-         }
-         p.sub {
-         color: #666;
-         font-size: .9em;
-         margin-top: 0
-         }
-         footer {
-         margin-top: 32px;
-         padding-top: 12px;
-         border-top: 1px solid #ddd;
-         color: #999;
-         font-size: .82em;
-         text-align: center
-         }
-         footer a {
-         color: #888
-         }
-         table {
-         width: 100%;
-         border-collapse: collapse;
-         margin-top: 12px
-         }
-         th,
-         td {
-         padding: 7px 10px;
-         text-align: left;
-         border: 1px solid #ddd
-         }
-         th {
-         background: #f5f5f5;
-         font-weight: 600
-         }
-         select {
-         width: 100%;
-         box-sizing: border-box;
-         padding: 3px
-         }
-         .save {
-         margin-top: 16px;
-         background: #2a7cdf;
-         color: #fff;
-         border: none;
-         padding: 10px 28px;
-         font-size: 1em;
-         border-radius: 4px;
-         cursor: pointer
-         }
-         .save:hover {
-         background: #1a5cb0
-         }
-         .hint {
-         color: #888;
-         font-size: .82em;
-         margin-top: 6px
-         }
-         .danger {
-         background: #c0392b
-         }
-         .danger:hover {
-         background: #962d22
-         }
-         .field {
-         margin-top: 14px
-         }
-         .field label {
-         font-weight: 600;
-         display: block;
-         margin-bottom: 4px
-         }
-         .field input[type=text] {
-         width: 100%;
-         max-width: 320px;
-         box-sizing: border-box;
-         padding: 5px 8px;
-         font-size: 1em;
-         border: 1px solid #ccc;
-         border-radius: 3px
-         }
-         .tab {
-         cursor: pointer;
-         padding: 7px 18px;
-         border: 1px solid #ccc;
-         background: #f5f5f5;
-         font-size: .95em;
-         border-radius: 3px 3px 0 0;
-         margin-right: 4px
-         }
-         .tab.active {
-         background: #2a7cdf;
-         color: #fff;
-         border-color: #2a7cdf
-         }
-         .kmtab {
-         border: 1px solid #ddd;
-         border-radius: 0 4px 4px 4px;
-         padding: 10px;
-         margin-bottom: 12px
-         }
-      </style>
-   </head>
-   <body>
-      <h2>Remote keyboard Keymap Config</h2>
-      <p class="sub">AP configuration mode</p>
-      <form method="POST" action="/save">
-         <div style="margin-bottom:0">
-            <button type="button" id="tab1" class="tab" onclick="showKm(1)">Keymap 1</button>
-            <button type="button" id="tab2" class="tab" onclick="showKm(2)">Keymap 2</button>
-            <button type="button" id="tab3" class="tab" onclick="showKm(3)">Keymap 3</button>
-         </div>
-         <div id="km1" class="kmtab" style="display:none">
-            <table>
-               <thead>
-                  <tr>
-                     <th>Button</th>
-                     <th>Short Press</th>
-                     <th>Long Press</th>
-                  </tr>
-               </thead>
-               <tbody id="rows1"></tbody>
-            </table>
-         </div>
-         <div id="km2" class="kmtab" style="display:none">
-            <table>
-               <thead>
-                  <tr>
-                     <th>Button</th>
-                     <th>Short Press</th>
-                     <th>Long Press</th>
-                  </tr>
-               </thead>
-               <tbody id="rows2"></tbody>
-            </table>
-         </div>
-         <div id="km3" class="kmtab" style="display:none">
-            <table>
-               <thead>
-                  <tr>
-                     <th>Button</th>
-                     <th>Short Press</th>
-                     <th>Long Press</th>
-                  </tr>
-               </thead>
-               <tbody id="rows3"></tbody>
-            </table>
-         </div>
-         <p class="hint">Active keymap: <strong>ACTIVEKEYMAP</strong> &mdash; switch on device with Button&nbsp;4+1, 4+2, or
-            4+3 (LED flashes 1/2/3 times to confirm).<br>
-            Button 4 long-press = always enters this config mode (not remappable).<br>
-            Tap Button 4 on the device to exit without saving.
-         </p>
-         <div class="field">
-            <label for="blename">BLE Device Name:</label>
-            <input type="text" id="blename" name="blename" value="BLENAME" maxlength="32" pattern="[ -~]+" required
-               placeholder="RemoteKeyboard">
-            <p class="hint">1&#8211;32 printable ASCII characters &mdash; shown in the Bluetooth pairing dialog.</p>
-         </div>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Remote Keyboard Config</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;color:#1e293b;line-height:1.5;font-size:16px}
+    .page{max-width:820px;margin:0 auto;padding:16px 16px 48px}
+    /* Header */
+    .hdr{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:20px 0 16px;border-bottom:2px solid #2563eb;margin-bottom:20px}
+    .hdr-title{font-size:1.35rem;font-weight:700;color:#1e3a5f}
+    .hdr-sub{color:#64748b;font-size:.85rem;margin-top:2px}
+    .hdr-badge{display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;background:#dbeafe;color:#1d4ed8;font-size:.82rem;font-weight:600;white-space:nowrap;align-self:center}
+    /* Cards */
+    .card{background:#fff;border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+    .card-title{font-size:.95rem;font-weight:700;color:#1e3a5f;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #f1f5f9}
+    /* Keymap tabs */
+    .tab-bar{display:flex;gap:6px;flex-wrap:wrap}
+    .tab{padding:9px 22px;border:2px solid #cbd5e1;background:#fff;border-radius:8px 8px 0 0;font-size:.9rem;font-weight:600;color:#475569;cursor:pointer;transition:all .15s;margin-bottom:-2px;border-bottom-color:#e2e8f0}
+    .tab:hover:not(.active){border-color:#93c5fd;color:#2563eb}
+    .tab.active{background:#2563eb;border-color:#2563eb;color:#fff;border-bottom-color:#2563eb}
+    .km-panel{border:2px solid #e2e8f0;border-radius:0 8px 8px 8px;padding:14px;background:#fafbfc;display:none}
+    .km-panel.visible{display:block}
+    .km-hint{font-size:.82rem;color:#64748b;margin-top:14px;line-height:1.65;padding:10px 12px;background:#f8fafc;border-radius:6px;border-left:3px solid #93c5fd}
+    /* Button cards */
+    .btns-list{display:flex;flex-direction:column;gap:8px}
+    .btn-card{border:1px solid #e2e8f0;border-radius:10px;background:#fff;overflow:hidden}
+    .btn-hdr{background:#f8fafc;padding:10px 14px;font-size:.88rem;font-weight:700;color:#334155;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px}
+    .btn-num{width:22px;height:22px;background:#2563eb;color:#fff;border-radius:50%;font-size:.75rem;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+    .btn-body{padding:12px 14px;display:grid;grid-template-columns:1fr;gap:14px}
+    @media(min-width:520px){.btn-body{grid-template-columns:1fr 1fr;gap:12px}}
+    .press-grp{}
+    .press-lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #f1f5f9}
+    .ctrl-row{margin-bottom:8px}
+    .ctrl-row:last-child{margin-bottom:0}
+    .ctrl-lbl{display:block;font-size:.78rem;color:#64748b;margin-bottom:3px;font-weight:500}
+    select{width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:.875rem;color:#1e293b;background:#fff;cursor:pointer;-webkit-appearance:auto}
+    select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .reserved-note{font-size:.82rem;color:#94a3b8;font-style:italic;padding:6px 0}
+    /* Form fields */
+    .field{margin-bottom:16px}
+    .field:last-of-type{margin-bottom:0}
+    .field-lbl{display:block;font-size:.88rem;font-weight:600;color:#334155;margin-bottom:5px}
+    .field-hint{font-size:.78rem;color:#94a3b8;margin-top:5px;line-height:1.55}
+    input[type=text],input[type=number]{padding:9px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:.92rem;color:#1e293b;width:100%;max-width:300px;background:#fff}
+    input[type=text]:focus,input[type=number]:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    /* Checkboxes */
+    .chk-row{display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-bottom:12px}
+    .chk-row:last-child{margin-bottom:0}
+    .chk-row input[type=checkbox]{width:18px;height:18px;margin-top:2px;cursor:pointer;flex-shrink:0;accent-color:#2563eb}
+    .chk-body{}
+    .chk-title{font-size:.9rem;font-weight:600;color:#334155;display:block}
+    .chk-hint{font-size:.78rem;color:#94a3b8;margin-top:2px;line-height:1.5;display:block}
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 26px;border:none;border-radius:8px;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .15s;line-height:1}
+    .btn-full{width:100%}
+    .btn-blue{background:#2563eb;color:#fff}
+    .btn-blue:hover{background:#1d4ed8}
+    .btn-blue:active{background:#1e40af}
+    .btn-red{background:#dc2626;color:#fff}
+    .btn-red:hover{background:#b91c1c}
+    .btn-red:active{background:#991b1b}
+    .btn-outline{background:#fff;color:#334155;border:2px solid #cbd5e1}
+    .btn-outline:hover{background:#f1f5f9;border-color:#94a3b8}
+    /* Save bar */
+    .save-bar{margin-top:20px;padding-top:16px;border-top:1px solid #f1f5f9}
+    /* File input */
+    input[type=file]{display:block;margin-bottom:12px;font-size:.9rem;color:#334155;width:100%;max-width:400px;padding:6px 0}
+    /* Battery info badge */
+    .bat-info{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:14px}
+    .bat-info-icon{font-size:1.1rem}
+    .bat-info-text{font-size:.88rem;color:#15803d;font-weight:600}
+    .bat-info-sub{font-size:.78rem;color:#4ade80;margin-top:1px}
+    /* Footer */
+    footer{text-align:center;font-size:.78rem;color:#94a3b8;padding:20px 0 8px}
+    footer a{color:#64748b;text-decoration:none}
+    footer a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+<div class="page">
 
-         <div class="field" style="BATTERYSECTIONSTYLE">
-            <label><input type="checkbox" name="battery_enabled" value="1" data-checked="BATTERYENABLED"> Enable battery level
-            reading</label>
-            <p class="hint">Reads the cell voltage and reports charge percentage over BLE.
-            </p>
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">&#9000; Remote Keyboard Config</div>
+      <div class="hdr-sub">Wi-Fi AP Configuration Mode</div>
+    </div>
+    <span class="hdr-badge">v<span id="fw-ver"></span></span>
+  </div>
 
-            <label><input type="checkbox" name="ble_power_saving" value="1" data-checked="BLEPOWERSAVING"> Enable BLE power saving</label>
-            <p class="hint">Enabling this option allows the device and phone to negotiate power-saving connection parameters, which can significantly reduce battery drain when idle. If you notice issues with the device disconnecting or failing to reconnect after a period of inactivity, try disabling this option.
-            </p>
-         </div>
+  <!-- ===== Keymap Form ===== -->
+  <form method="POST" action="/save" id="mainForm">
 
-         <div class="field">
-            <label for="max_ble_connections">Max BLE Connections:</label>
-            <input type="number" id="max_ble_connections" name="max_ble_connections" value="MAXBLECONNECTIONS" min="1" max="3" required>
-            <p class="hint">Set the maximum number of simultaneous Bluetooth connections (1-3). If you have multiple devices that need to connect at the same time, increase this value. You can cycle between connected devices to send keystrokes to with the key combo 4 -> 5 (number of LED blinks indicates current selection) or to all of them (broadcast) (LED long flash). By default broadcast is used. 
-              Note: BLE advertisements are only run for 60 seconds after a device connects to save power, when no devices are connected advertisements are run indefinitely.
-            </p>
-         </div>
-         
-         <input type="submit" class="save" value="Save &amp; Reboot">
-      </form>
-      <hr style="margin:24px 0">
-      <h3>Firmware Update</h3>
-      <form method="POST" action="/update" enctype="multipart/form-data" id="otaFrm">
-         <p><input type="file" name="firmware" accept=".bin" required></p>
-         <input type="submit" class="save" value="Flash Firmware" id="otaBtn">
-         <p class="hint" id="otaSt">Upload a .bin compiled for this board. Device reboots after a successful flash.</p>
-      </form>
-      <hr style="margin:24px 0">
-      <h3>BLE Bonds</h3>
-      <p class="sub">Clear stored pairing data if the device fails to reconnect after a reset. You will need to re-pair your
-         phone afterwards.
+    <div class="card">
+      <div class="card-title">&#9000; Keymap Configuration</div>
+      <div class="tab-bar">
+        <button type="button" class="tab" id="tab1" onclick="showKm(1)">Keymap 1</button>
+        <button type="button" class="tab" id="tab2" onclick="showKm(2)">Keymap 2</button>
+        <button type="button" class="tab" id="tab3" onclick="showKm(3)">Keymap 3</button>
+      </div>
+      <div id="km1" class="km-panel"><div class="btns-list" id="rows1"></div></div>
+      <div id="km2" class="km-panel"><div class="btns-list" id="rows2"></div></div>
+      <div id="km3" class="km-panel"><div class="btns-list" id="rows3"></div></div>
+      <p class="km-hint">
+        Active keymap: <strong id="active-km"></strong> &#8212;
+        switch on device with Button&nbsp;4+1, 4+2, or 4+3 (LED flashes 1/2/3 times to confirm).<br>
+        Button&nbsp;4 long-press always enters this config mode (not remappable).
+        Tap Button&nbsp;4 on the device to exit without saving.
       </p>
-      <form method="POST" action="/clearbonds" id="bondFrm">
-         <input type="submit" class="save danger" value="Clear BLE Bonds &amp; Reboot" id="bondBtn">
-      </form>
-      <hr style="margin:24px 0">
-      <h3>Reset to Defaults</h3>
-      <p class="sub">Fill in the default keymap for the currently visible tab and the BLE device name. Save &amp; Reboot to
-         apply.
-      </p>
-      <button type="button" class="save danger" onclick="resetToDefaults()">Reset to Defaults</button>
-      <script>
-         document.getElementById('otaFrm').onsubmit = function () {
-           var b = document.getElementById('otaBtn');
-           b.value = 'Uploading\u2026'; b.disabled = true;
-           document.getElementById('otaSt').textContent = 'Uploading \u2014 do not close this page\u2026';
-         };
-         document.getElementById('bondFrm').onsubmit = function () {
-           if (!confirm('Clear all BLE bonds?\nThe device will reboot. You will need to re-pair your phone.')) return false;
-           var b = document.getElementById('bondBtn');
-           b.value = 'Clearing\u2026'; b.disabled = true;
-         };
+    </div>
 
-         document.querySelectorAll("input[data-checked]").forEach(el => {
-            el.checked = el.dataset.checked === "true";
-         });
+    <!-- ===== Device Settings ===== -->
+    <div class="card">
+      <div class="card-title">&#9881; Device Settings</div>
 
-         var DS = [DEFAULTSHORT];
-         var DL = [DEFAULTLONG];
-         var KM = [
-           { S: [SHORTVALS1], L: [LONGVALS1] },
-           { S: [SHORTVALS2], L: [LONGVALS2] },
-           { S: [SHORTVALS3], L: [LONGVALS3] }
-         ];
-         var curKm = ACTIVEKEYMAP;
-         // Key options: [code, label]
-         var K = [
-           [43, '+'], [45, '-'], [42, '*'], [47, '/'], [61, '='],
-           [32, 'Space'], [46, '.'], [44, ','], [59, ';'], [58, ':'],
-           [33, '!'], [63, '?'], [64, '@'], [35, '#'], [37, '%'],
-           [176, 'Enter'], [177, 'Esc'], [178, 'Backspace'], [179, 'Tab'],
-           [209, 'Insert'], [210, 'Home'], [211, 'Page Up'],
-           [212, 'Delete'], [213, 'End'], [214, 'Page Down'],
-           [218, 'Up Arrow'], [217, 'Down Arrow'], [216, 'Left Arrow'], [215, 'Right Arrow'],
-           [193, 'Caps Lock'],
-           [194, 'F1'], [195, 'F2'], [196, 'F3'], [197, 'F4'], [198, 'F5'], [199, 'F6'],
-           [200, 'F7'], [201, 'F8'], [202, 'F9'], [203, 'F10'], [204, 'F11'], [205, 'F12'],
-           [224, 'Play/Pause'], [225, 'Stop'], [226, 'Next Track'], [227, 'Prev Track'],
-           [228, 'Volume Up'], [229, 'Volume Down'], [230, 'Mute']
-         ];
-         for (var i = 97; i <= 122; i++) K.push([i, String.fromCharCode(i)]); // a-z
-         for (var i = 48; i <= 57; i++)  K.push([i, String.fromCharCode(i)]); // 0-9
-         
-         function buildOpts(cur, withRepeat) {
-           var h = '';
-           if (withRepeat)
-             h += '<option value="0"' + (cur === 0 ? ' selected' : '') + '>\u21BA Repeat short key</option>';
-           K.forEach(function (k) {
-             var sel = (k[0] === cur && !(withRepeat && cur === 0)) ? ' selected' : '';
-             h += '<option value="' + k[0] + '"' + sel + '>' + k[1] + '</option>';
-           });
-           return h;
-         }
-         
-         for (var km = 1; km <= 3; km++) {
-           var tbody = document.getElementById('rows' + km);
-           var S = KM[km - 1].S, L = KM[km - 1].L;
-           for (var i = 0; i < 8; i++) {
-             var tr = document.createElement('tr');
-             // Button 4 (index 3) long press is reserved -- show as disabled info cell
-             var longCell = (i === 3)
-               ? '<td><em style="color:#999">reserved (config trigger)</em><input type="hidden" name="l' + km + '_3" value="' + L[3] + '"></td>'
-               : '<td><select name="l' + km + '_' + i + '">' + buildOpts(L[i], true) + '</select></td>';
-             tr.innerHTML =
-               '<td><strong>Button ' + (i + 1) + '</strong></td>' +
-               '<td><select name="s' + km + '_' + i + '">' + buildOpts(S[i], false) + '</select></td>' +
-               longCell;
-             tbody.appendChild(tr);
-           }
-         }
-         
-         function showKm(n) {
-           document.getElementById('km' + curKm).style.display = 'none';
-           document.getElementById('tab' + curKm).className = 'tab';
-           curKm = n;
-           document.getElementById('km' + curKm).style.display = '';
-           document.getElementById('tab' + curKm).className = 'tab active';
-         }
-         showKm(curKm);
-         
-         function resetToDefaults() {
-           var rows = document.getElementById('rows' + curKm).rows;
-           for (var i = 0; i < 8; i++) {
-             var sels = rows[i].querySelectorAll('select');
-             if (sels[0]) sels[0].value = DS[i];
-             if (sels[1]) sels[1].value = DL[i];
-           }
-           document.getElementById('blename').value = DEFAULTBLENAME;
-         }
-      </script>
-      <footer>Remote keyboard vFWVER &mdash; by <a href="https://github.com/drake7707/" target="_blank"
-         rel="noopener">Drakarah</a> &mdash; <a href="https://github.com/drake7707/" target="_blank"
-         rel="noopener">github.com/drake7707</a>. Originally used for <a href='https://jaxeadv.com/barbuttons/'>BarButtons by
-         JADXAdv</a>
-      </footer>
-   </body>
+      <div class="field">
+        <label for="blename" class="field-lbl">BLE Device Name</label>
+        <input type="text" id="blename" name="blename" maxlength="32" pattern="[ -~]+" required placeholder="RemoteKeyboard">
+        <p class="field-hint">1&#8211;32 printable ASCII characters &#8212; shown in the Bluetooth device pairing dialog.</p>
+      </div>
+
+      <div id="battery-section" style="display:none">
+        <div id="bat-reading" style="display:none" class="bat-info">
+          <span class="bat-info-icon">&#128267;</span>
+          <div>
+            <div class="bat-info-text" id="bat-pct-txt"></div>
+            <div class="bat-info-sub" id="bat-mv-txt"></div>
+          </div>
+        </div>
+        <label class="chk-row">
+          <input type="checkbox" id="battery_enabled" name="battery_enabled" value="1">
+          <span class="chk-body">
+            <span class="chk-title">Enable battery level reading</span>
+            <span class="chk-hint">Reads the cell voltage and reports charge percentage over BLE.</span>
+          </span>
+        </label>
+        <label class="chk-row">
+          <input type="checkbox" id="ble_power_saving" name="ble_power_saving" value="1">
+          <span class="chk-body">
+            <span class="chk-title">Enable BLE power saving</span>
+            <span class="chk-hint">Negotiate power-saving connection parameters to reduce battery drain. Disable if you notice disconnection or reconnect issues.</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label for="max_ble_connections" class="field-lbl">Max BLE Connections</label>
+        <input type="number" id="max_ble_connections" name="max_ble_connections" min="1" max="3" required style="max-width:90px">
+        <p class="field-hint">
+          Simultaneous Bluetooth connections (1&#8211;3).
+          Use combo Button&nbsp;4&#8594;5 to cycle active target (LED blink count = current slot),
+          or Button&nbsp;4&#8594;6 to broadcast to all.
+        </p>
+      </div>
+
+      <div class="save-bar">
+        <button type="submit" class="btn btn-blue btn-full">&#128190; Save &amp; Reboot</button>
+      </div>
+    </div>
+
+  </form>
+
+  <!-- ===== Firmware Update ===== -->
+  <div class="card">
+    <div class="card-title">&#8679; Firmware Update</div>
+    <form method="POST" action="/update" enctype="multipart/form-data" id="otaFrm">
+      <div class="field">
+        <input type="file" name="firmware" accept=".bin" required>
+      </div>
+      <button type="submit" class="btn btn-outline" id="otaBtn">&#8679; Flash Firmware</button>
+      <span id="otaSt">Upload a .bin compiled for this board. Device reboots after a successful flash.</span>
+    </form>
+  </div>
+
+  <!-- ===== BLE Bonds ===== -->
+  <div class="card">
+    <div class="card-title">&#128279; BLE Bonds</div>
+    <p class="field-hint" style="margin-bottom:14px">Clear stored pairing data if the device fails to reconnect after a reset. You will need to re-pair your phone afterwards.</p>
+    <form method="POST" action="/clearbonds" id="bondFrm">
+      <button type="submit" class="btn btn-red" id="bondBtn">&#10006; Clear BLE Bonds &amp; Reboot</button>
+    </form>
+  </div>
+
+  <!-- ===== Reset to Defaults ===== -->
+  <div class="card">
+    <div class="card-title">&#8635; Reset to Defaults</div>
+    <p class="field-hint" style="margin-bottom:14px">Fills in the default keymap for the currently visible tab and resets the BLE device name. Press Save &amp; Reboot to apply.</p>
+    <button type="button" class="btn btn-red" onclick="resetToDefaults()">&#8635; Reset to Defaults</button>
+  </div>
+
+  <footer>
+    Remote Keyboard v<span id="fw-ver2"></span> &#8212;
+    by <a href="https://github.com/drake7707/" target="_blank" rel="noopener">Drakarah</a> &#8212;
+    Originally for <a href="https://jaxeadv.com/barbuttons/" target="_blank" rel="noopener">BarButtons by JADXAdv</a>
+  </footer>
+
+</div><!-- .page -->
+
+<script>
+  var CFG = SETTINGSJSON;
+  var TARGET_SELECT = CFG.TARGET_SELECT;
+  var TARGET_HID    = CFG.TARGET_HID;
+  var TARGET_BTHOME = CFG.TARGET_BTHOME;
+  var DS = CFG.defaultShort;
+  var DL = CFG.defaultLong;
+  var KM = CFG.km;
+  var curKm = CFG.activeKeymap;
+
+  // Populate static fields from settings JSON
+  document.getElementById('fw-ver').textContent  = CFG.fwVer;
+  document.getElementById('fw-ver2').textContent = CFG.fwVer;
+  document.getElementById('active-km').textContent = CFG.activeKeymap;
+  document.getElementById('blename').value = CFG.bleName;
+  document.getElementById('battery_enabled').checked = CFG.batteryEnabled;
+  document.getElementById('ble_power_saving').checked = CFG.blePowerSaving;
+  if (CFG.batterySection) document.getElementById('battery-section').style.display = '';
+  document.getElementById('max_ble_connections').value = CFG.maxBleConnections;
+  if (CFG.batterySection && CFG.batPercent >= 0) {
+    document.getElementById('bat-reading').style.display = '';
+    document.getElementById('bat-pct-txt').textContent = 'Battery: ' + CFG.batPercent + '%';
+    document.getElementById('bat-mv-txt').textContent  = CFG.batVoltageMv + '\u202fmV';
+  }
+
+  document.getElementById('otaFrm').onsubmit = function () {
+    var b = document.getElementById('otaBtn');
+    b.textContent = 'Uploading\u2026'; b.disabled = true;
+    document.getElementById('otaSt').textContent = 'Uploading \u2014 do not close this page\u2026';
+  };
+  document.getElementById('bondFrm').onsubmit = function () {
+    if (!confirm('Clear all BLE bonds?\nThe device will reboot. You will need to re-pair your phone.')) return false;
+    var b = document.getElementById('bondBtn');
+    b.textContent = 'Clearing\u2026'; b.disabled = true;
+  };
+
+  // Key code table: [code, label]
+  var K = [
+    [43,'+'], [45,'-'], [42,'*'], [47,'/'], [61,'='],
+    [32,'Space'], [46,'.'], [44,','], [59,';'], [58,':'],
+    [33,'!'], [63,'?'], [64,'@'], [35,'#'], [37,'%'],
+    [176,'Enter'], [177,'Esc'], [178,'Backspace'], [179,'Tab'],
+    [209,'Insert'], [210,'Home'], [211,'Page Up'],
+    [212,'Delete'], [213,'End'], [214,'Page Down'],
+    [218,'Up Arrow'], [217,'Down Arrow'], [216,'Left Arrow'], [215,'Right Arrow'],
+    [193,'Caps Lock'],
+    [194,'F1'], [195,'F2'], [196,'F3'], [197,'F4'], [198,'F5'], [199,'F6'],
+    [200,'F7'], [201,'F8'], [202,'F9'], [203,'F10'], [204,'F11'], [205,'F12'],
+    [224,'Play/Pause'], [225,'Stop'], [226,'Next Track'], [227,'Prev Track'],
+    [228,'Volume Up'], [229,'Volume Down'], [230,'Mute']
+  ];
+  for (var i = 97; i <= 122; i++) K.push([i, String.fromCharCode(i)]); // a-z
+  for (var i = 48; i <= 57; i++)  K.push([i, String.fromCharCode(i)]); // 0-9
+
+  function buildOpts(cur, withRepeat) {
+    var h = '';
+    if (withRepeat)
+      h += '<option value="0"' + (cur === 0 ? ' selected' : '') + '>\u21BA Repeat short key</option>';
+    K.forEach(function (k) {
+      var sel = (k[0] === cur && !(withRepeat && cur === 0)) ? ' selected' : '';
+      h += '<option value="' + k[0] + '"' + sel + '>' + k[1] + '</option>';
+    });
+    return h;
+  }
+
+  // Build target <select> options; show stale (not-bonded) MACs with a label
+  function buildTargetOpts(type, mac) {
+    var h = '<option value="0"' + (type === TARGET_SELECT ? ' selected' : '') + '>Use target selector</option>';
+    h += '<option value="1:"' + (type === TARGET_HID && mac === '' ? ' selected' : '') + '>HID: Broadcast to all</option>';
+    CFG.bonds.forEach(function (b) {
+      h += '<option value="1:' + b + '"' + (type === TARGET_HID && mac === b ? ' selected' : '') + '>HID: ' + b + '</option>';
+    });
+    if (type === TARGET_HID && mac !== '' && CFG.bonds.indexOf(mac) === -1) {
+      h += '<option value="1:' + mac + '" selected>HID: ' + mac + ' (not bonded)</option>';
+    }
+    h += '<option value="' + TARGET_BTHOME + '"' + (type === TARGET_BTHOME ? ' selected' : '') + '>BT Home broadcast</option>';
+    return h;
+  }
+
+  // Hide the key ctrl-row when BT Home is selected (no key needed)
+  function onTgtChange(sel) {
+    var kid = sel.getAttribute('data-key');
+    if (kid) {
+      var row = document.getElementById(kid);
+      if (row) row.style.display = sel.value === String(TARGET_BTHOME) ? 'none' : '';
+    }
+  }
+
+  // Build button cards for all 3 keymap panels
+  for (var km = 1; km <= 3; km++) {
+    var container = document.getElementById('rows' + km);
+    var S  = KM[km-1].S,  L  = KM[km-1].L;
+    var ST = KM[km-1].ST, SM = KM[km-1].SM;
+    var LT = KM[km-1].LT, LM = KM[km-1].LM;
+
+    for (var i = 0; i < 8; i++) {
+      // Short press section
+      var ksCid = 'crs_' + km + '_' + i;
+      var shortHtml =
+        '<div class="press-grp">' +
+        '<div class="press-lbl">Short Press</div>' +
+        '<div class="ctrl-row"' + (ST[i] === TARGET_BTHOME ? ' style="display:none"' : '') + ' id="' + ksCid + '">' +
+          '<span class="ctrl-lbl">Key</span>' +
+          '<select name="s' + km + '_' + i + '">' + buildOpts(S[i], false) + '</select>' +
+        '</div>' +
+        '<div class="ctrl-row">' +
+          '<span class="ctrl-lbl">Target</span>' +
+          '<select name="ts' + km + '_' + i + '" data-key="' + ksCid + '" onchange="onTgtChange(this)">' + buildTargetOpts(ST[i], SM[i]) + '</select>' +
+        '</div>' +
+        '</div>';
+
+      // Long press section
+      var longHtml;
+      if (i === 3) {
+        // Button 4 long press is reserved for config trigger
+        longHtml =
+          '<div class="press-grp">' +
+          '<div class="press-lbl">Long Press</div>' +
+          '<p class="reserved-note">Reserved &#8212; config mode trigger</p>' +
+          '<input type="hidden" name="l' + km + '_3" value="' + L[3] + '">' +
+          '<input type="hidden" name="tl' + km + '_3" value="0">' +
+          '</div>';
+      } else {
+        var klCid = 'crl_' + km + '_' + i;
+        longHtml =
+          '<div class="press-grp">' +
+          '<div class="press-lbl">Long Press</div>' +
+          '<div class="ctrl-row"' + (LT[i] === TARGET_BTHOME ? ' style="display:none"' : '') + ' id="' + klCid + '">' +
+            '<span class="ctrl-lbl">Key</span>' +
+            '<select name="l' + km + '_' + i + '">' + buildOpts(L[i], true) + '</select>' +
+          '</div>' +
+          '<div class="ctrl-row">' +
+            '<span class="ctrl-lbl">Target</span>' +
+            '<select name="tl' + km + '_' + i + '" data-key="' + klCid + '" onchange="onTgtChange(this)">' + buildTargetOpts(LT[i], LM[i]) + '</select>' +
+          '</div>' +
+          '</div>';
+      }
+
+      var card = document.createElement('div');
+      card.className = 'btn-card';
+      card.innerHTML =
+        '<div class="btn-hdr"><span class="btn-num">' + (i+1) + '</span> Button ' + (i+1) + '</div>' +
+        '<div class="btn-body">' + shortHtml + longHtml + '</div>';
+      container.appendChild(card);
+    }
+  }
+
+  function showKm(n) {
+    document.getElementById('km'   + curKm).classList.remove('visible');
+    document.getElementById('tab'  + curKm).classList.remove('active');
+    curKm = n;
+    document.getElementById('km'  + curKm).classList.add('visible');
+    document.getElementById('tab' + curKm).classList.add('active');
+  }
+  showKm(curKm);
+
+  function resetToDefaults() {
+    var cards = document.getElementById('rows' + curKm).querySelectorAll('.btn-card');
+    for (var i = 0; i < 8; i++) {
+      var sels = cards[i].querySelectorAll('select');
+      // Order: short-key, short-tgt, [long-key, long-tgt] (button 4 has no long selects)
+      if (sels[0]) sels[0].value = DS[i];
+      if (sels[1]) { sels[1].value = '0'; onTgtChange(sels[1]); }
+      if (sels[2]) sels[2].value = DL[i];
+      if (sels[3]) { sels[3].value = '0'; onTgtChange(sels[3]); }
+    }
+    document.getElementById('blename').value = CFG.defaultBleName;
+  }
+</script>
+</body>
 </html>

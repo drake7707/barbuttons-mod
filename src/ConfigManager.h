@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <string>
 #include <algorithm>
+#include <vector>
 #include <nvs_flash.h>
 #include <nvs.h>
 #include <esp_wifi.h>
@@ -38,6 +39,20 @@ public:
   // Factory defaults -- mirror the original hard-coded behaviour
   static const uint8_t DEFAULT_SHORT[8];
   static const uint8_t DEFAULT_LONG[8];
+
+  // Per-key target type
+  enum KeyTarget : uint8_t {
+    TARGET_SELECT = 0, // use the runtime target selector
+    TARGET_HID    = 1, // send to a specific HID peer (or broadcast)
+    TARGET_BTHOME = 2  // broadcast a BTHome advertisement
+  };
+
+  // One button action (short or long press)
+  struct KeyEntry {
+    uint8_t   key    = 0;
+    KeyTarget target = TARGET_SELECT;
+    char      mac[18] = {}; // HID peer MAC ("" = broadcast all)
+  };
 
   // Inject the StatusLedManager so web handlers can signal progress via LED,
   // and the firmware version string to display in the web config UI.
@@ -84,18 +99,24 @@ public:
   void clearClearBondsFlag();
 
   // ---------------------------------------------------------------------------
-  // Keymap / BLE name accessors
+  // Keymap accessors -- returns the short/long press entry for the active keymap
   // ---------------------------------------------------------------------------
-  uint8_t     getShortKey(int idx) const;
-  uint8_t     getLongKey(int idx)  const;
-  const char* getBleName()         const { return _bleName; }
+  const KeyEntry& getShortEntry(int idx) const;
+  const KeyEntry& getLongEntry(int idx)  const;
+  const char*     getBleName()           const { return _bleName; }
 
   static int btnIndex(char key);
 
   // ---------------------------------------------------------------------------
   // AP / HTTP server -- config mode
   // ---------------------------------------------------------------------------
-  void beginConfigAP();
+
+  // Bond list is passed here (collected from BLEManager before BLE is stopped)
+  // so the web UI can offer known peers as HID target options.
+  // Battery voltage (mV) and percentage are passed for display in the web UI;
+  // pass -1 for either to indicate no reading is available.
+  void beginConfigAP(const std::vector<std::string>& bondList,
+                     int batVoltageMv = -1, int batPercent = -1);
   void handleClient() {}
   void endConfigAP();
 
@@ -106,8 +127,11 @@ private:
   StatusLedManager* _led          = nullptr;
   bool              _exitConfig   = false;
   char              _firmwareVersion[32] = {};
-  uint8_t           _short[3][8]  = {};
-  uint8_t           _long[3][8]   = {};
+  KeyEntry          _shortEntries[3][8]  = {};
+  KeyEntry          _longEntries[3][8]   = {};
+  std::vector<std::string> _bondList;    // populated at AP start
+  int               _batVoltageMv  = -1; // battery voltage passed at AP start (-1 = unavailable)
+  int               _batPercent    = -1; // battery percent passed at AP start (-1 = unavailable)
   int               _activeKeymap = 1;
   bool              _batteryEnabled = false;
   bool              _blePowerSaving = false;

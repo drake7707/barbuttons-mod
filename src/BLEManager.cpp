@@ -131,6 +131,20 @@ std::vector<std::string> BLEManager::getConnections()
   return peers;
 }
 
+std::vector<std::string> BLEManager::getBondedAddresses()
+{
+  std::vector<std::string> result;
+  int num = NimBLEDevice::getNumBonds();
+  for (int i = 0; i < num; i++)
+  {
+    NimBLEAddress addr = NimBLEDevice::getBondedAddress(i);
+    result.push_back(addr.toString());
+  }
+  if (DEBUG)
+    printf("[BLE] getBondedAddresses: %d bonds\n", num);
+  return result;
+}
+
 void BLEManager::write(std::string &target, uint8_t key)
 {
   if (DEBUG)

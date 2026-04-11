@@ -76,8 +76,13 @@ void applyKeymap()
     }
     else
     {
-      // Repeat mode when no distinct long-press action is configured (getLongKey == 0)
-      buttonManager.setButtonRepeating(btn, configManager.getLongKey(i) == 0);
+      // BT Home targets don't use key-repeat (they fire a broadcast on every
+      // press event; repeating doesn't make sense for those).
+      bool hasBTHome = (configManager.getShortEntry(i).target == ConfigManager::TARGET_BTHOME ||
+                        configManager.getLongEntry(i).target  == ConfigManager::TARGET_BTHOME);
+      // Repeat mode when no distinct long-press action is configured (key == 0)
+      // and no BT Home target is involved.
+      buttonManager.setButtonRepeating(btn, !hasBTHome && configManager.getLongEntry(i).key == 0);
     }
   }
 }
@@ -90,6 +95,10 @@ void start_config_mode()
   if (DEBUG)
     printf("[MAIN] Entering config AP mode\n");
 
+  // Collect the bond list while NimBLE is still active so the web UI can
+  // offer each known peer as an HID target option.
+  auto bondList = bleManager.getBondedAddresses();
+
   // On ESP32-C3 the radio is shared; stop BLE before starting WiFi AP
   bleManager.end();
   vTaskDelay(pdMS_TO_TICKS(100));
@@ -98,7 +107,12 @@ void start_config_mode()
   // NOTE: ledManager status is intentionally NOT yet APP_CONFIG here.
   // Setting it before the button is released would immediately trigger
   // the on_short_press config-exit check. See drainButton below.
-  configManager.beginConfigAP();
+  {
+    const bool batAvail = (!LEGACY && configManager.isBatteryEnabled());
+    int batMv  = batAvail ? batteryManager.getLastVoltageMv() : -1;
+    int batPct = batAvail ? batteryManager.getLastPercent()   : -1;
+    configManager.beginConfigAP(bondList, batMv, batPct);
+  }
 
   // Drain the button-4 RELEASED event that triggered config mode.
   // While status != APP_CONFIG the on_short_press handler will NOT set the exit flag.
@@ -222,24 +236,36 @@ void on_short_press(char btn)
   if (idx < 0)
     return;
 
-  // IT WORKS woop woop
-  // // Always broadcast a BTHome button-press event so Home Assistant can detect
-  // // the button regardless of whether a HID key action is configured.
-  // bleManager.getAdvertisingManager().broadcastBTHomeButtonPress(
-  //     BLEAdvertisingManager::BTHOME_BUTTON_PRESS, idx + 1);
+  const auto& entry = configManager.getShortEntry(idx);
 
-  uint8_t shortKey = configManager.getShortKey(idx);
-  if (shortKey == 0)
+  // BT Home broadcast target: send a BTHome advertisement and return.
+  if (entry.target == ConfigManager::TARGET_BTHOME)
+  {
+    if (DEBUG)
+      printf("[MAIN] Short press: %c -> BTHome broadcast\n", btn);
+    bleManager.getAdvertisingManager().broadcastBTHomeButtonPress(
+        BLEAdvertisingManager::BTHOME_BUTTON_PRESS, idx + 1);
+    ledManager.flashLed(1, 150, 0);
+    return;
+  }
+
+  if (entry.key == 0)
     return;
 
-  auto currentTarget = getCurrentOutputTarget();
+  // Determine HID target: fixed MAC (TARGET_HID) or runtime selector (TARGET_SELECT).
+  std::string target;
+  if (entry.target == ConfigManager::TARGET_HID)
+    target = entry.mac; // empty string = broadcast to all
+  else
+    target = getCurrentOutputTarget(); // TARGET_SELECT
 
   if (DEBUG)
-    printf("[MAIN] Short press: %c -> key=0x%02X (%d)\n", btn, shortKey, shortKey);
+    printf("[MAIN] Short press: %c -> key=0x%02X (%d) to target %s\n",
+           btn, entry.key, entry.key, target.empty() ? "BROADCAST" : target.c_str());
 
   if (bleManager.isConnected())
   {
-    bleManager.write(currentTarget, shortKey);
+    bleManager.write(target, entry.key);
     ledManager.flashLed(1, 150, 0);
   }
 }
@@ -258,23 +284,35 @@ void on_long_press(char btn)
   if (idx < 0)
     return;
 
-  auto currentTarget = getCurrentOutputTarget();
+  const auto& entry = configManager.getLongEntry(idx);
 
-  uint8_t longKey = configManager.getLongKey(idx);
+  // BT Home broadcast target: send a BTHome long-press advertisement and return.
+  if (entry.target == ConfigManager::TARGET_BTHOME)
+  {
+    if (DEBUG)
+      printf("[MAIN] Long press: %c -> BTHome broadcast\n", btn);
+    bleManager.getAdvertisingManager().broadcastBTHomeButtonPress(
+        BLEAdvertisingManager::BTHOME_BUTTON_LONG_PRESS, idx + 1);
+    ledManager.flashLed(1, 150, 0);
+    return;
+  }
+
+  // Determine HID target: fixed MAC (TARGET_HID) or runtime selector (TARGET_SELECT).
+  std::string target;
+  if (entry.target == ConfigManager::TARGET_HID)
+    target = entry.mac; // empty string = broadcast to all
+  else
+    target = getCurrentOutputTarget(); // TARGET_SELECT
 
   if (DEBUG)
-    printf("[MAIN] Long press: %c -> key=0x%02X (%d) to target %s\n", btn, longKey, longKey, currentTarget == "" ? "BROADCAST" : currentTarget.c_str());
-
-   // TODO
-  // Always broadcast a BTHome long-press event so Home Assistant can detect it.
-  //bleManager.getAdvertisingManager().broadcastBTHomeButtonPress(
-  //    BLEAdvertisingManager::BTHOME_BUTTON_LONG_PRESS, idx + 1);
+    printf("[MAIN] Long press: %c -> key=0x%02X (%d) to target %s\n",
+           btn, entry.key, entry.key, target.empty() ? "BROADCAST" : target.c_str());
 
   if (bleManager.isConnected())
   {
-    if (longKey != 0)
+    if (entry.key != 0)
     {
-      bleManager.write(currentTarget, longKey);
+      bleManager.write(target, entry.key);
       ledManager.flashLed(1, 150, 0);
     }
   }

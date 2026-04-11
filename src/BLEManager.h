@@ -44,6 +44,10 @@ public:
 
   std::vector<std::string> getConnections();
 
+  // Return MAC address strings of all bonded devices stored in NVS.
+  // Must be called while NimBLE is initialised (before end()).
+  std::vector<std::string> getBondedAddresses();
+
   BLEAdvertisingManager& getAdvertisingManager();
 
   // Send a single key tap (press + immediate release).

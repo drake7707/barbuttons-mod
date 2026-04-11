@@ -53,6 +53,13 @@ private:
   adc_cali_handle_t         _calHandle  = nullptr;
   bool                      _calEnabled = false;
   BatteryReadingHandler     _handler    = nullptr;
+  int                       _lastMv     = -1;   // last battery voltage in mV; -1 until first ADC read
 
   void _initCalibration();
+
+public:
+  // Returns the last measured battery percentage (0-100), or -1 if no reading yet.
+  int getLastPercent()   const { return _lastPct == 0xFF ? -1 : (int)_lastPct; }
+  // Returns the last measured battery voltage in millivolts, or -1 if no reading yet.
+  int getLastVoltageMv() const { return _lastMv; }
 };

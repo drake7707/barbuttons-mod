@@ -59,6 +59,7 @@ void BatteryManager::update() {
 
   // Scale up through the voltage divider to get the actual battery voltage.
   int bat_mv = (int)((int64_t)adc_mv * (VDIV_R1_KOHM + VDIV_R2_KOHM) / VDIV_R2_KOHM);
+  _lastMv = bat_mv;
 
   // Map [BAT_MIN_MV, BAT_MAX_MV] → [0, 100] % and clamp.
   int pct = (bat_mv - BAT_MIN_MV) * 100 / (BAT_MAX_MV - BAT_MIN_MV);

@@ -89,13 +89,13 @@ def _minify(html: str) -> str:
     # Convert back to string
     html_str = str(soup)
 
-    # Minify HTML
-    # html_str = htmlmin.minify(
-    #     html_str,
-    #     remove_comments=True,
-    #     remove_empty_space=True,
-    #     reduce_boolean_attributes=True
-    # )
+    # Convert non-ASCII characters to HTML numeric character references so
+    # the output is pure ASCII and is displayed correctly regardless of whether
+    # the browser is told the charset via the Content-Type header.
+    # Without this, BeautifulSoup leaves decoded entities (e.g. &mdash; → —)
+    # as raw UTF-8 bytes which renders as broken characters in browsers that
+    # default to latin-1 / windows-1252.
+    html_str = html_str.encode("ascii", "xmlcharrefreplace").decode("ascii")
 
     return html_str
 
