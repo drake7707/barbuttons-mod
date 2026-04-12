@@ -352,11 +352,15 @@ const PersistenceManager::KeyEntry& PersistenceManager::getLongEntry(int idx) co
 
 PersistenceManager::KeyEntry& PersistenceManager::rawShortEntry(int km, int idx)
 {
+  if (km < 0 || km >= 3) km = 0;
+  if (idx < 0 || idx >= 8) idx = 0;
   return _shortEntries[km][idx];
 }
 
 PersistenceManager::KeyEntry& PersistenceManager::rawLongEntry(int km, int idx)
 {
+  if (km < 0 || km >= 3) km = 0;
+  if (idx < 0 || idx >= 8) idx = 0;
   return _longEntries[km][idx];
 }
 
