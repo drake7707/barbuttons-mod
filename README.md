@@ -1,6 +1,6 @@
 # Description
 
-Remote Bluetooth keyboard targeting an **ESP32-C3 Zero** microcontroller.
+Remote Bluetooth (BLE) buttons targeting an **ESP32-C3 Zero** microcontroller acting as HID device and/or BTHome device
 
 ---
 
