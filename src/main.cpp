@@ -1,5 +1,5 @@
 /*
-   Remote Keyboard firmware - Custom AP Keymap Configuration version
+   Remote Buttons firmware - Custom AP Keymap Configuration version
 
    Modified from original BarButtons v1 (https://jaxeadv.com/barbuttons).
    Instead of OTA firmware updates over STA, this version:
