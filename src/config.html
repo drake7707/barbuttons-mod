@@ -281,7 +281,9 @@
   }
 
   // Build target <select> options; show stale (not-bonded) MACs with a label
-  function buildTargetOpts(type, mac) {
+  // btnNum (optional): when provided, appended to the BT Home broadcast label for clarity
+  function buildTargetOpts(type, mac, btnNum) {
+    var btHomeLabel = 'BT Home broadcast' + (btnNum ? ' button ' + btnNum : '');
     var h = '<option value="0"' + (type === TARGET_SELECT ? ' selected' : '') + '>Use target selector</option>';
     h += '<option value="1:"' + (type === TARGET_HID && mac === '' ? ' selected' : '') + '>HID: Broadcast to all</option>';
     CFG.bonds.forEach(function (b) {
@@ -290,7 +292,7 @@
     if (type === TARGET_HID && mac !== '' && CFG.bonds.indexOf(mac) === -1) {
       h += '<option value="1:' + mac + '" selected>HID: ' + mac + ' (not bonded)</option>';
     }
-    h += '<option value="' + TARGET_BTHOME + '"' + (type === TARGET_BTHOME ? ' selected' : '') + '>BT Home broadcast</option>';
+    h += '<option value="' + TARGET_BTHOME + '"' + (type === TARGET_BTHOME ? ' selected' : '') + '>' + btHomeLabel + '</option>';
     return h;
   }
 
@@ -322,7 +324,7 @@
         '</div>' +
         '<div class="ctrl-row">' +
           '<span class="ctrl-lbl">Target</span>' +
-          '<select name="ts' + km + '_' + i + '" data-key="' + ksCid + '" onchange="onTgtChange(this)">' + buildTargetOpts(ST[i], SM[i]) + '</select>' +
+          '<select name="ts' + km + '_' + i + '" data-key="' + ksCid + '" onchange="onTgtChange(this)">' + buildTargetOpts(ST[i], SM[i], i + 1) + '</select>' +
         '</div>' +
         '</div>';
 
@@ -348,7 +350,7 @@
           '</div>' +
           '<div class="ctrl-row">' +
             '<span class="ctrl-lbl">Target</span>' +
-            '<select name="tl' + km + '_' + i + '" data-key="' + klCid + '" onchange="onTgtChange(this)">' + buildTargetOpts(LT[i], LM[i]) + '</select>' +
+            '<select name="tl' + km + '_' + i + '" data-key="' + klCid + '" onchange="onTgtChange(this)">' + buildTargetOpts(LT[i], LM[i], i + 1) + '</select>' +
           '</div>' +
           '</div>';
       }
@@ -395,8 +397,8 @@
     return 'Key\u00a0' + code;
   }
 
-  function tgtShortLabel(t, m) {
-    if (t === TARGET_BTHOME) return 'BT\u00a0Home';
+  function tgtShortLabel(t, m, btnNum) {
+    if (t === TARGET_BTHOME) return 'BT\u00a0Home' + (btnNum ? '\u00a0btn\u00a0' + btnNum : '');
     if (t === TARGET_HID)    return m ? 'HID:\u00a0' + m : 'HID:\u00a0All';
     return 'Selector';
   }
@@ -411,12 +413,13 @@
     } else {
       for (var j = 0; j < arr.length; j++) {
         var c = arr[j];
-        var action = (c.t === TARGET_BTHOME) ? 'BT\u00a0Home' : keyName(c.k);
+        var pressedBtnNum = c.p - 48;
+        var action = (c.t === TARGET_BTHOME) ? 'BT\u00a0Home\u00a0btn\u00a0' + pressedBtnNum : keyName(c.k);
         html += '<div class="combo-item">' +
           '<span class="combo-item-desc">' +
           '<strong>Hold</strong> ' + btnName(c.h) + ' + <strong>Press</strong> ' + btnName(c.p) +
           ' \u2192 ' + action +
-          ' <span class="combo-item-tgt">(' + tgtShortLabel(c.t, c.m) + ')</span>' +
+          ' <span class="combo-item-tgt">(' + tgtShortLabel(c.t, c.m, pressedBtnNum) + ')</span>' +
           '</span>' +
           '<button type="button" class="combo-item-remove" onclick="removeCombo(' + km + ',' + j + ')">\u2715</button>' +
           '</div>';
@@ -477,10 +480,12 @@
     if (addDiv) addDiv.classList.toggle('open');
   }
 
-  // Rebuild the "Press" select to exclude button 4 and the currently selected "Hold" button
+  // Rebuild the "Press" select to exclude the currently selected "Hold" button,
+  // then refresh the BT Home option label in the target dropdown
   function updateComboPressed(km) {
     var heldSel    = document.getElementById('newComboHeld'    + km);
     var pressedSel = document.getElementById('newComboPressed' + km);
+    var tgtSel     = document.getElementById('newComboTgt'     + km);
     if (!heldSel || !pressedSel) return;
     var heldCode = parseInt(heldSel.value, 10);
     var curPressed = parseInt(pressedSel.value, 10);
@@ -491,6 +496,22 @@
       html += '<option value="' + code + '"' + (code === curPressed && code !== heldCode ? ' selected' : '') + '>Button ' + b + '</option>';
     }
     pressedSel.innerHTML = html;
+    updateComboTgtBtHomeLabel(km);
+  }
+
+  // Update the BT Home option label in the combo target dropdown to reflect the current pressed button
+  function updateComboTgtBtHomeLabel(km) {
+    var pressedSel = document.getElementById('newComboPressed' + km);
+    var tgtSel     = document.getElementById('newComboTgt'     + km);
+    if (!pressedSel || !tgtSel) return;
+    var pressedBtnNum = parseInt(pressedSel.value, 10) - 48;
+    var btHomeVal = String(TARGET_BTHOME);
+    for (var i = 0; i < tgtSel.options.length; i++) {
+      if (tgtSel.options[i].value === btHomeVal) {
+        tgtSel.options[i].text = 'BT Home broadcast button ' + pressedBtnNum;
+        break;
+      }
+    }
   }
 
   // Build combo section for each keymap panel
@@ -528,13 +549,13 @@
             '<div><span class="ctrl-lbl">Hold</span>' +
             '<select id="newComboHeld' + km + '" onchange="updateComboPressed(' + km + ')">' + heldOpts + '</select></div>' +
             '<div><span class="ctrl-lbl">Press</span>' +
-            '<select id="newComboPressed' + km + '">' + pressedOptsInit + '</select></div>' +
+            '<select id="newComboPressed' + km + '" onchange="updateComboTgtBtHomeLabel(' + km + ')">' + pressedOptsInit + '</select></div>' +
             '<div id="' + keyRowId + '"><span class="ctrl-lbl">Key</span>' +
             '<select id="newComboKey' + km + '"><option value="0">-- select --</option>' +
             buildOpts(0, false) + '</select></div>' +
             '<div><span class="ctrl-lbl">Target</span>' +
             '<select id="' + tgtSelId + '" data-key="' + keyRowId + '" onchange="onTgtChange(this)">' +
-            buildTargetOpts(TARGET_SELECT, '') + '</select></div>' +
+            buildTargetOpts(TARGET_SELECT, '', 2) + '</select></div>' +
           '</div>' +
           '<div class="combo-add-actions">' +
             '<button type="button" class="btn btn-blue" onclick="addCombo(' + km + ')">&#10003; Confirm</button>' +
