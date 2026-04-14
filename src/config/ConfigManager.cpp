@@ -1,11 +1,11 @@
 #include "config/ConfigManager.h"
 
-void ConfigManager::begin(StatusLedManager* led, const char* firmwareVersion)
+void ConfigManager::begin(StatusLedManager *led, const char *firmwareVersion)
 {
   webUI.begin(led, firmwareVersion);
 }
 
-void ConfigManager::loadAll()
+void ConfigManager::loadConfig()
 {
   persistence.loadConfig(config);
 }
@@ -23,36 +23,40 @@ void ConfigManager::setActiveKeymap(int slot)
   persistence.saveActiveKeymap(slot);
 }
 
-const KeyEntry& ConfigManager::getShortEntry(int idx) const
+const KeyEntry &ConfigManager::getShortEntry(int buttonIndex) const
 {
   static const KeyEntry empty{};
   int km = (config.activeKeymap >= 1 && config.activeKeymap <= 3) ? config.activeKeymap - 1 : 0;
-  return (idx >= 0 && idx < 8) ? config.shortEntries[km][idx] : empty;
+  return (buttonIndex >= 0 && buttonIndex < 8) ? config.shortEntries[km][buttonIndex] : empty;
 }
 
-const KeyEntry& ConfigManager::getLongEntry(int idx) const
+const KeyEntry &ConfigManager::getLongEntry(int buttonIndex) const
 {
   static const KeyEntry empty{};
   int km = (config.activeKeymap >= 1 && config.activeKeymap <= 3) ? config.activeKeymap - 1 : 0;
-  return (idx >= 0 && idx < 8) ? config.longEntries[km][idx] : empty;
+  return (buttonIndex >= 0 && buttonIndex < 8) ? config.longEntries[km][buttonIndex] : empty;
 }
 
-KeyEntry& ConfigManager::rawShortEntry(int km, int idx)
+KeyEntry &ConfigManager::rawShortEntry(int keymap, int buttonIndex)
 {
-  if (km < 0 || km >= 3)   km  = 0;
-  if (idx < 0 || idx >= 8) idx = 0;
-  return config.shortEntries[km][idx];
+  if (keymap < 0 || keymap >= 3)
+    keymap = 0;
+  if (buttonIndex < 0 || buttonIndex >= 8)
+    buttonIndex = 0;
+  return config.shortEntries[keymap][buttonIndex];
 }
 
-KeyEntry& ConfigManager::rawLongEntry(int km, int idx)
+KeyEntry &ConfigManager::rawLongEntry(int keymap, int buttonIndex)
 {
-  if (km < 0 || km >= 3)   km  = 0;
-  if (idx < 0 || idx >= 8) idx = 0;
-  return config.longEntries[km][idx];
+  if (keymap < 0 || keymap >= 3)
+    keymap = 0;
+  if (buttonIndex < 0 || buttonIndex >= 8)
+    buttonIndex = 0;
+  return config.longEntries[keymap][buttonIndex];
 }
 
-void ConfigManager::beginConfigAP(const std::vector<std::string>& bondList,
-                                   int batVoltageMv, int batPercent)
+void ConfigManager::beginConfigAP(const std::vector<std::string> &bondList,
+                                  int batVoltageMv, int batPercent)
 {
   webUI.beginConfigAP(this, bondList, batVoltageMv, batPercent);
 }

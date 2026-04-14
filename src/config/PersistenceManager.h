@@ -12,13 +12,14 @@ extern const bool LEGACY;
 // Reads/writes a Config struct to/from NVS.  No in-memory state is kept here.
 // ---------------------------------------------------------------------------
 
-class PersistenceManager {
+class PersistenceManager
+{
 public:
   // Load all settings from NVS into 'config'.
-  void loadConfig(Config& config);
+  void loadConfig(Config &config);
 
   // Persist the full config to NVS (used after the web UI save handler).
-  void saveConfig(const Config& config);
+  void saveConfig(const Config &config);
 
   // Lightweight save of only the active keymap index (used at runtime when
   // the user switches keymaps via button combo, without a full config save).

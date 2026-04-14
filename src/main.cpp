@@ -79,7 +79,7 @@ void applyKeymap()
       // BT Home targets don't use key-repeat (they fire a broadcast on every
       // press event; repeating doesn't make sense for those).
       bool hasBTHome = (configManager.getShortEntry(i).target == TARGET_BTHOME ||
-                        configManager.getLongEntry(i).target  == TARGET_BTHOME);
+                        configManager.getLongEntry(i).target == TARGET_BTHOME);
       // Repeat mode when no distinct long-press action is configured (key == 0)
       // and no BT Home target is involved.
       buttonManager.setButtonRepeating(btn, !hasBTHome && configManager.getLongEntry(i).key == 0);
@@ -109,8 +109,8 @@ void start_config_mode()
   // the on_short_press config-exit check. See drainButton below.
   {
     const bool batAvail = (!LEGACY && configManager.isBatteryEnabled());
-    int batMv  = batAvail ? batteryManager.getLastVoltageMv() : -1;
-    int batPct = batAvail ? batteryManager.getLastPercent()   : -1;
+    int batMv = batAvail ? batteryManager.getLastVoltageMv() : -1;
+    int batPct = batAvail ? batteryManager.getLastPercent() : -1;
     configManager.beginConfigAP(bondList, batMv, batPct);
   }
 
@@ -236,7 +236,7 @@ void on_short_press(char btn)
   if (idx < 0)
     return;
 
-  const auto& entry = configManager.getShortEntry(idx);
+  const auto &entry = configManager.getShortEntry(idx);
 
   // BT Home broadcast target: send a BTHome advertisement and return.
   if (entry.target == TARGET_BTHOME)
@@ -284,7 +284,7 @@ void on_long_press(char btn)
   if (idx < 0)
     return;
 
-  const auto& entry = configManager.getLongEntry(idx);
+  const auto &entry = configManager.getLongEntry(idx);
 
   // BT Home broadcast target: send a BTHome long-press advertisement and return.
   if (entry.target == TARGET_BTHOME)
@@ -384,7 +384,7 @@ extern "C" void app_main()
   esp_event_loop_create_default();
 
   configManager.begin(&ledManager, FIRMWARE_VERSION);
-  configManager.loadAll();
+  configManager.loadConfig();
 
   bleManager.begin(configManager.getBleName(), configManager.allowBLEPowerSaving(), configManager.getMaxBLEConnections());
 
@@ -404,7 +404,9 @@ extern "C" void app_main()
   buttonManager.setPinConfiguration(getKeypadRowPins(LEGACY),
                                     getKeypadColPins(LEGACY));
   buttonManager.begin();
+
   applyKeymap();
+  
   // Flash N times to indicate which keymap is active on boot
   ledManager.flashLed(configManager.getActiveKeymap(), 150, 100);
 
@@ -444,6 +446,7 @@ extern "C" void app_main()
   while (true)
   {
     buttonManager.update();
+
     if (batteryEnabled)
       batteryManager.update();
 

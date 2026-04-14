@@ -13,9 +13,9 @@ static inline uint32_t millis_now() { return (uint32_t)(esp_timer_get_time() / 1
 // ---------------------------------------------------------------------------
 enum AppStatus
 {
-  APP_BT_DISCONNECTED = 0, // Not connected to BT, advertising if not in config mode
-  APP_CONFIG = 1,          // Config mode (AP active, rapid blink)
-  APP_CONNECTED = 2,        // BT connected, main menu
+  APP_BT_DISCONNECTED = 0,         // Not connected to BT, advertising if not in config mode
+  APP_CONFIG = 1,                  // Config mode (AP active, rapid blink)
+  APP_CONNECTED = 2,               // BT connected, main menu
   APP_BT_CONNECTED_ADVERTISING = 3 // BT connected, advertising while already connected
 };
 
@@ -58,7 +58,7 @@ private:
   int _ledDelays[4][2] = {
       {500, 500},  // APP_BT_DISCONNECTED
       {100, 3000}, // APP_CONFIG
-      {0, 0},  // APP_CONNECTED
+      {0, 0},      // APP_CONNECTED
       {2000, 100}  // APP_BT_CONNECTED_ADVERTISING
   };
 };
