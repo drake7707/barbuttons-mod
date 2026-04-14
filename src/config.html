@@ -117,7 +117,7 @@
 
       <div class="field">
         <label for="blename" class="field-lbl">BLE Device Name</label>
-        <input type="text" id="blename" name="blename" maxlength="32" pattern="[ -~]+" required placeholder="RemoteKeyboard">
+        <input type="text" id="blename" name="blename" maxlength="32" pattern="[ -~]+" required placeholder="RemoteButtons">
         <p class="field-hint">1&#8211;32 printable ASCII characters &#8212; shown in the Bluetooth device pairing dialog.</p>
       </div>
 
@@ -168,9 +168,9 @@
     <form method="POST" action="/update" enctype="multipart/form-data" id="otaFrm">
       <div class="field">
         <input type="file" name="firmware" accept=".bin" required>
+              <p class="field-hint" id="otaSt">Upload a .bin compiled for this board. Device reboots after a successful flash.</p>
       </div>
       <button type="submit" class="btn btn-outline" id="otaBtn">&#8679; Flash Firmware</button>
-      <span id="otaSt">Upload a .bin compiled for this board. Device reboots after a successful flash.</span>
     </form>
   </div>
 

@@ -3,7 +3,7 @@
 #include <esp_adc/adc_oneshot.h>  // adc_channel_t
 
 // ---------------------------------------------------------------------------
-// HardwareConfig — pin assignments for the RemoteKeyboard board
+// HardwareConfig — pin assignments for the RemoteButtons board
 // Edit this file when porting to a different board or PCB revision.
 // ---------------------------------------------------------------------------
 

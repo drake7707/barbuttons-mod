@@ -1,6 +1,6 @@
 #include "config/Config.h"
 
-const char DEFAULT_BLE_NAME[] = "RemoteKeyboard";
+const char DEFAULT_BLE_NAME[] = "RemoteButtons";
 
 const uint8_t Config::DEFAULT_SHORT[8] = {
     '+', '-', 'n', 'c',

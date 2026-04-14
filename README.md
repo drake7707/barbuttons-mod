@@ -14,7 +14,7 @@ Based on the original [BarButtons](https://jaxeadv.com/barbuttons) v1 firmware, 
 
 | Feature | Description |
 |---|---|
-| **AP config mode** | Starts a WiFi AP (`RemoteKeyboard-Config` / `remotekeyboard`) on demand |
+| **AP config mode** | Starts a WiFi AP (`RemoteButtons-Config` / `remotebuttons`) on demand |
 | **Web keymap editor** | Configure Short Press and Long Press action (key + BLE target) for all 8 buttons across 3 keymap slots |
 | **Per-key BLE target** | Each button press can target: *use target selector*, *broadcast to all HID peers*, *a specific bonded HID peer*, or *BT Home advertisement* |
 | **Multiple keymaps** | Three independent keymap slots switchable on-device via Button 4 combos; active slot persisted across reboots |
@@ -40,7 +40,7 @@ Based on the original [BarButtons](https://jaxeadv.com/barbuttons) v1 firmware, 
 ### Entering / exiting config mode
 
 1. **Hold Button 4 for ~5 seconds** — LED switches to rapid config-mode blink.
-2. Connect to WiFi SSID **`RemoteKeyboard-Config`**, password **`remotekeyboard`**.
+2. Connect to WiFi SSID **`RemoteButtons-Config`**, password **`remotebuttons`**.
 3. Open **`http://192.168.4.1`** in a browser (works on mobile).
 4. **Keymap Configuration** — set Short Press / Long Press action and BLE target per button for any of the three keymap slots, then click **Save & Reboot**.
 5. **Firmware Update** — choose a `.bin` and click **Flash Firmware** for OTA update.
