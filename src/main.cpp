@@ -406,7 +406,6 @@ extern "C" void app_main()
   buttonManager.begin();
 
   applyKeymap();
-  
   // Flash N times to indicate which keymap is active on boot
   ledManager.flashLed(configManager.getActiveKeymap(), 150, 100);
 

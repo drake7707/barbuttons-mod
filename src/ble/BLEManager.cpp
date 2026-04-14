@@ -357,85 +357,85 @@ void BLEManager::toHID(uint8_t keyCode, uint8_t &scanCode, uint8_t &modifier)
   switch (keyCode)
   { // special keys
   case 0xB0:
-    scan = 0x28;
+    scanCode = 0x28;
     break; // Return
   case 0xB1:
-    scan = 0x29;
+    scanCode = 0x29;
     break; // Esc
   case 0xB2:
-    scan = 0x2A;
+    scanCode = 0x2A;
     break; // Backspace
   case 0xB3:
-    scan = 0x2B;
+    scanCode = 0x2B;
     break; // Tab
   case 0xC1:
-    scan = 0x39;
+    scanCode = 0x39;
     break; // Caps Lock
   case 0xC2:
-    scan = 0x3A;
+    scanCode = 0x3A;
     break; // F1
   case 0xC3:
-    scan = 0x3B;
+    scanCode = 0x3B;
     break; // F2
   case 0xC4:
-    scan = 0x3C;
+    scanCode = 0x3C;
     break; // F3
   case 0xC5:
-    scan = 0x3D;
+    scanCode = 0x3D;
     break; // F4
   case 0xC6:
-    scan = 0x3E;
+    scanCode = 0x3E;
     break; // F5
   case 0xC7:
-    scan = 0x3F;
+    scanCode = 0x3F;
     break; // F6
   case 0xC8:
-    scan = 0x40;
+    scanCode = 0x40;
     break; // F7
   case 0xC9:
-    scan = 0x41;
+    scanCode = 0x41;
     break; // F8
   case 0xCA:
-    scan = 0x42;
+    scanCode = 0x42;
     break; // F9
   case 0xCB:
-    scan = 0x43;
+    scanCode = 0x43;
     break; // F10
   case 0xCC:
-    scan = 0x44;
+    scanCode = 0x44;
     break; // F11
   case 0xCD:
-    scan = 0x45;
+    scanCode = 0x45;
     break; // F12
   case 0xD1:
-    scan = 0x49;
+    scanCode = 0x49;
     break; // Insert
   case 0xD2:
-    scan = 0x4A;
+    scanCode = 0x4A;
     break; // Home
   case 0xD3:
-    scan = 0x4B;
+    scanCode = 0x4B;
     break; // Page Up
   case 0xD4:
-    scan = 0x4C;
+    scanCode = 0x4C;
     break; // Delete
   case 0xD5:
-    scan = 0x4D;
+    scanCode = 0x4D;
     break; // End
   case 0xD6:
-    scan = 0x4E;
+    scanCode = 0x4E;
     break; // Page Down
   case 0xD7:
-    scan = 0x4F;
+    scanCode = 0x4F;
     break; // Right Arrow
   case 0xD8:
-    scan = 0x50;
+    scanCode = 0x50;
     break; // Left Arrow
   case 0xD9:
-    scan = 0x51;
+    scanCode = 0x51;
     break; // Down Arrow
   case 0xDA:
-    scan = 0x52;
+    scanCode = 0x52;
     break; // Up Arrow
   }
 }
