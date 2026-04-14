@@ -383,7 +383,7 @@ extern "C" void app_main()
   esp_netif_init();
   esp_event_loop_create_default();
 
-  configManager.begin(&ledManager, FIRMWARE_VERSION);
+  configManager.begin(FIRMWARE_VERSION);
   configManager.loadConfig();
 
   bleManager.begin(configManager.getBleName(), configManager.allowBLEPowerSaving(), configManager.getMaxBLEConnections());

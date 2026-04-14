@@ -2,9 +2,8 @@
 #include "config/ConfigManager.h"
 #include "cJSON.h"
 
-void WebUIConfigManager::begin(StatusLedManager *led, const char *firmwareVersion)
+void WebUIConfigManager::begin(const char *firmwareVersion)
 {
-  _led = led;
   strncpy(_firmwareVersion, firmwareVersion, sizeof(_firmwareVersion) - 1);
   _firmwareVersion[sizeof(_firmwareVersion) - 1] = '\0';
 }
@@ -53,9 +52,6 @@ void WebUIConfigManager::beginConfigAP(ConfigManager *configManager,
   httpd_register_uri_handler(_server, &saveUri);
   httpd_register_uri_handler(_server, &clearBondsUri);
   httpd_register_uri_handler(_server, &updateUri);
-
-  if (_led)
-    _led->flashLed(5, 100, 100);
 }
 
 void WebUIConfigManager::endConfigAP()
@@ -369,8 +365,6 @@ void WebUIConfigManager::_handleSave(httpd_req_t *req)
   httpd_resp_set_type(req, "text/html");
   httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
 
-  if (_led)
-    _led->flashLed(3, 80, 80);
   vTaskDelay(pdMS_TO_TICKS(800));
   esp_restart();
 }
@@ -390,8 +384,6 @@ void WebUIConfigManager::_handleClearBonds(httpd_req_t *req)
   httpd_resp_set_type(req, "text/html");
   httpd_resp_send(req, resp, HTTPD_RESP_USE_STRLEN);
 
-  if (_led)
-    _led->flashLed(3, 80, 80);
   vTaskDelay(pdMS_TO_TICKS(800));
   esp_restart();
 }
@@ -523,8 +515,6 @@ void WebUIConfigManager::_handleUpdate(httpd_req_t *req)
 
   if (otaSucceeded)
   {
-    if (_led)
-      _led->flashLed(5, 50, 50);
     vTaskDelay(pdMS_TO_TICKS(500));
     esp_restart();
   }

@@ -1,8 +1,8 @@
 #include "config/ConfigManager.h"
 
-void ConfigManager::begin(StatusLedManager *led, const char *firmwareVersion)
+void ConfigManager::begin(const char *firmwareVersion)
 {
-  _webUI.begin(led, firmwareVersion);
+  _webUI.begin(firmwareVersion);
 }
 
 void ConfigManager::loadConfig()

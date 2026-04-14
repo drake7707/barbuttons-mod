@@ -21,7 +21,7 @@
 extern const uint8_t config_html_start[] asm("_binary_config_min_html_start");
 extern const uint8_t config_html_end[] asm("_binary_config_min_html_end");
 
-class ConfigManager; 
+class ConfigManager;
 
 // ---------------------------------------------------------------------------
 // WebUIConfigManager -- WiFi AP setup and HTTP web UI routes.
@@ -31,7 +31,7 @@ class ConfigManager;
 class WebUIConfigManager
 {
 public:
-  void begin(StatusLedManager *led, const char *firmwareVersion);
+  void begin(const char *firmwareVersion);
 
   // bondList: known HID peers offered as target options in the web UI.
   // batVoltageMv / batPercent: battery snapshot for display (-1 = unavailable).
@@ -45,17 +45,21 @@ public:
   void setExitRequested(bool requested) { _exitConfig = requested; }
 
 private:
-  StatusLedManager *_led = nullptr;
   bool _exitConfig = false;
   char _firmwareVersion[32] = {};
+
   ConfigManager *_configManager = nullptr;
+
   std::vector<std::string> _bondList;
+
   int _batVoltageMv = -1;
   int _batPercent = -1;
+
   httpd_handle_t _server = nullptr;
   esp_netif_t *_apNetif = nullptr;
-  const char *_apSsid = "RemoteKeyboard-Config";
-  const char *_apPswd = "remotekeyboard";
+
+  const char *_apSsid = "RemoteButtons-Config";
+  const char *_apPswd = "remotebuttons";
 
   static void _strReplace(std::string &s, const std::string &from, const std::string &to);
   static void _strTrim(std::string &s);

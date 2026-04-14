@@ -14,8 +14,8 @@
 class ConfigManager
 {
 public:
-  // Inject the StatusLedManager and firmware version string (passed to webUI).
-  void begin(StatusLedManager *led, const char *firmwareVersion);
+  
+  void begin(const char *firmwareVersion);
 
   // Load all settings from NVS into the internal config state.
   void loadConfig();
