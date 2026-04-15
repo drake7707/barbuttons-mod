@@ -260,22 +260,25 @@ void PersistenceManager::saveConfig(const Config &config)
       printf("[CONFIG] saveConfig: nvs_open('%s') failed: %s\n", namespaces[keymap], esp_err_to_name(kmErr));
       continue;
     }
+    auto nvsSet8  = [&](const char *k, uint8_t v)  { esp_err_t e = nvs_set_u8( nvsHandle, k, v); if (e != ESP_OK) printf("[CONFIG] saveConfig: nvs_set_u8  '%s' in '%s' failed: %s\n", k, namespaces[keymap], esp_err_to_name(e)); };
+    auto nvsSet16 = [&](const char *k, uint16_t v) { esp_err_t e = nvs_set_u16(nvsHandle, k, v); if (e != ESP_OK) printf("[CONFIG] saveConfig: nvs_set_u16 '%s' in '%s' failed: %s\n", k, namespaces[keymap], esp_err_to_name(e)); };
+    auto nvsSetStr= [&](const char *k, const char *v) { esp_err_t e = nvs_set_str(nvsHandle, k, v); if (e != ESP_OK) printf("[CONFIG] saveConfig: nvs_set_str '%s' in '%s' failed: %s\n", k, namespaces[keymap], esp_err_to_name(e)); };
     for (int i = 0; i < 8; i++)
     {
       char nvsKey[8];
-      snprintf(nvsKey, sizeof(nvsKey), "s%d",  i); nvs_set_u8( nvsHandle, nvsKey, config.shortEntries[keymap][i].key);
-      snprintf(nvsKey, sizeof(nvsKey), "l%d",  i); nvs_set_u8( nvsHandle, nvsKey, config.longEntries[keymap][i].key);
-      snprintf(nvsKey, sizeof(nvsKey), "st%d", i); nvs_set_u8( nvsHandle, nvsKey, (uint8_t)config.shortEntries[keymap][i].target);
-      snprintf(nvsKey, sizeof(nvsKey), "lt%d", i); nvs_set_u8( nvsHandle, nvsKey, (uint8_t)config.longEntries[keymap][i].target);
-      snprintf(nvsKey, sizeof(nvsKey), "sm%d", i); nvs_set_str(nvsHandle, nvsKey, config.shortEntries[keymap][i].mac);
-      snprintf(nvsKey, sizeof(nvsKey), "lm%d", i); nvs_set_str(nvsHandle, nvsKey, config.longEntries[keymap][i].mac);
+      snprintf(nvsKey, sizeof(nvsKey), "s%d",  i); nvsSet8 (nvsKey, config.shortEntries[keymap][i].key);
+      snprintf(nvsKey, sizeof(nvsKey), "l%d",  i); nvsSet8 (nvsKey, config.longEntries[keymap][i].key);
+      snprintf(nvsKey, sizeof(nvsKey), "st%d", i); nvsSet8 (nvsKey, (uint8_t)config.shortEntries[keymap][i].target);
+      snprintf(nvsKey, sizeof(nvsKey), "lt%d", i); nvsSet8 (nvsKey, (uint8_t)config.longEntries[keymap][i].target);
+      snprintf(nvsKey, sizeof(nvsKey), "sm%d", i); nvsSetStr(nvsKey, config.shortEntries[keymap][i].mac);
+      snprintf(nvsKey, sizeof(nvsKey), "lm%d", i); nvsSetStr(nvsKey, config.longEntries[keymap][i].mac);
       // IR NEC fields
-      snprintf(nvsKey, sizeof(nvsKey), "sia%d", i); nvs_set_u16(nvsHandle, nvsKey, config.shortEntries[keymap][i].irAddress);
-      snprintf(nvsKey, sizeof(nvsKey), "sic%d", i); nvs_set_u16(nvsHandle, nvsKey, config.shortEntries[keymap][i].irCommand);
-      snprintf(nvsKey, sizeof(nvsKey), "sir%d", i); nvs_set_u8( nvsHandle, nvsKey, config.shortEntries[keymap][i].irRepeats);
-      snprintf(nvsKey, sizeof(nvsKey), "lia%d", i); nvs_set_u16(nvsHandle, nvsKey, config.longEntries[keymap][i].irAddress);
-      snprintf(nvsKey, sizeof(nvsKey), "lic%d", i); nvs_set_u16(nvsHandle, nvsKey, config.longEntries[keymap][i].irCommand);
-      snprintf(nvsKey, sizeof(nvsKey), "lir%d", i); nvs_set_u8( nvsHandle, nvsKey, config.longEntries[keymap][i].irRepeats);
+      snprintf(nvsKey, sizeof(nvsKey), "sia%d", i); nvsSet16(nvsKey, config.shortEntries[keymap][i].irAddress);
+      snprintf(nvsKey, sizeof(nvsKey), "sic%d", i); nvsSet16(nvsKey, config.shortEntries[keymap][i].irCommand);
+      snprintf(nvsKey, sizeof(nvsKey), "sir%d", i); nvsSet8 (nvsKey, config.shortEntries[keymap][i].irRepeats);
+      snprintf(nvsKey, sizeof(nvsKey), "lia%d", i); nvsSet16(nvsKey, config.longEntries[keymap][i].irAddress);
+      snprintf(nvsKey, sizeof(nvsKey), "lic%d", i); nvsSet16(nvsKey, config.longEntries[keymap][i].irCommand);
+      snprintf(nvsKey, sizeof(nvsKey), "lir%d", i); nvsSet8 (nvsKey, config.longEntries[keymap][i].irRepeats);
     }
     esp_err_t kmCommitErr = nvs_commit(nvsHandle);
     if (kmCommitErr != ESP_OK)
@@ -297,20 +300,23 @@ void PersistenceManager::saveConfig(const Config &config)
         printf("[CONFIG] saveConfig: nvs_open('%s') failed: %s\n", comboNs[keymap], esp_err_to_name(cErr));
         continue;
       }
-      nvs_set_u8(nvsHandle, "cc", config.comboCounts[keymap]);
+      auto nvsSet8  = [&](const char *k, uint8_t v)     { esp_err_t e = nvs_set_u8( nvsHandle, k, v); if (e != ESP_OK) printf("[CONFIG] saveConfig: nvs_set_u8  '%s' in '%s' failed: %s\n", k, comboNs[keymap], esp_err_to_name(e)); };
+      auto nvsSet16 = [&](const char *k, uint16_t v)    { esp_err_t e = nvs_set_u16(nvsHandle, k, v); if (e != ESP_OK) printf("[CONFIG] saveConfig: nvs_set_u16 '%s' in '%s' failed: %s\n", k, comboNs[keymap], esp_err_to_name(e)); };
+      auto nvsSetStr= [&](const char *k, const char *v) { esp_err_t e = nvs_set_str(nvsHandle, k, v); if (e != ESP_OK) printf("[CONFIG] saveConfig: nvs_set_str '%s' in '%s' failed: %s\n", k, comboNs[keymap], esp_err_to_name(e)); };
+      nvsSet8("cc", config.comboCounts[keymap]);
       for (int j = 0; j < config.comboCounts[keymap]; j++)
       {
         char nvsKey[8];
         const ComboEntry &c = config.comboEntries[keymap][j];
-        snprintf(nvsKey, sizeof(nvsKey), "ch%d", j); nvs_set_u8( nvsHandle, nvsKey, (uint8_t)c.held);
-        snprintf(nvsKey, sizeof(nvsKey), "cp%d", j); nvs_set_u8( nvsHandle, nvsKey, (uint8_t)c.pressed);
-        snprintf(nvsKey, sizeof(nvsKey), "ck%d", j); nvs_set_u8( nvsHandle, nvsKey, c.key);
-        snprintf(nvsKey, sizeof(nvsKey), "ct%d", j); nvs_set_u8( nvsHandle, nvsKey, (uint8_t)c.target);
-        snprintf(nvsKey, sizeof(nvsKey), "cm%d", j); nvs_set_str(nvsHandle, nvsKey, c.mac);
+        snprintf(nvsKey, sizeof(nvsKey), "ch%d", j); nvsSet8 (nvsKey, (uint8_t)c.held);
+        snprintf(nvsKey, sizeof(nvsKey), "cp%d", j); nvsSet8 (nvsKey, (uint8_t)c.pressed);
+        snprintf(nvsKey, sizeof(nvsKey), "ck%d", j); nvsSet8 (nvsKey, c.key);
+        snprintf(nvsKey, sizeof(nvsKey), "ct%d", j); nvsSet8 (nvsKey, (uint8_t)c.target);
+        snprintf(nvsKey, sizeof(nvsKey), "cm%d", j); nvsSetStr(nvsKey, c.mac);
         // IR NEC fields
-        snprintf(nvsKey, sizeof(nvsKey), "cia%d", j); nvs_set_u16(nvsHandle, nvsKey, c.irAddress);
-        snprintf(nvsKey, sizeof(nvsKey), "cic%d", j); nvs_set_u16(nvsHandle, nvsKey, c.irCommand);
-        snprintf(nvsKey, sizeof(nvsKey), "cir%d", j); nvs_set_u8( nvsHandle, nvsKey, c.irRepeats);
+        snprintf(nvsKey, sizeof(nvsKey), "cia%d", j); nvsSet16(nvsKey, c.irAddress);
+        snprintf(nvsKey, sizeof(nvsKey), "cic%d", j); nvsSet16(nvsKey, c.irCommand);
+        snprintf(nvsKey, sizeof(nvsKey), "cir%d", j); nvsSet8 (nvsKey, c.irRepeats);
       }
       esp_err_t cCommitErr = nvs_commit(nvsHandle);
       if (cCommitErr != ESP_OK)
@@ -327,7 +333,9 @@ void PersistenceManager::saveConfig(const Config &config)
     esp_err_t cfgErr = nvs_open("config", NVS_READWRITE, &nvsHandle);
     if (cfgErr == ESP_OK)
     {
-      nvs_set_str(nvsHandle, "blename", config.bleName);
+      esp_err_t e = nvs_set_str(nvsHandle, "blename", config.bleName);
+      if (e != ESP_OK)
+        printf("[CONFIG] saveConfig: nvs_set_str 'blename' in 'config' failed: %s\n", esp_err_to_name(e));
       esp_err_t cfgCommitErr = nvs_commit(nvsHandle);
       if (cfgCommitErr != ESP_OK)
         printf("[CONFIG] saveConfig: nvs_commit('config') failed: %s\n", esp_err_to_name(cfgCommitErr));
@@ -347,10 +355,13 @@ void PersistenceManager::saveConfig(const Config &config)
     esp_err_t sysErr = nvs_open("sys", NVS_READWRITE, &nvsHandle);
     if (sysErr == ESP_OK)
     {
-      nvs_set_u8(nvsHandle, "activekm",   (uint8_t)config.activeKeymap);
-      nvs_set_u8(nvsHandle, "baten",      config.batteryEnabled  ? 1 : 0);
-      nvs_set_u8(nvsHandle, "blepsen",    config.blePowerSaving  ? 1 : 0);
-      nvs_set_u8(nvsHandle, "maxbleconn", config.maxBLEConnections);
+      auto logErr = [](const char *k, esp_err_t e) {
+        if (e != ESP_OK) printf("[CONFIG] saveConfig: nvs_set_u8 '%s' in 'sys' failed: %s\n", k, esp_err_to_name(e));
+      };
+      logErr("activekm",   nvs_set_u8(nvsHandle, "activekm",   (uint8_t)config.activeKeymap));
+      logErr("baten",      nvs_set_u8(nvsHandle, "baten",      config.batteryEnabled  ? 1 : 0));
+      logErr("blepsen",    nvs_set_u8(nvsHandle, "blepsen",    config.blePowerSaving  ? 1 : 0));
+      logErr("maxbleconn", nvs_set_u8(nvsHandle, "maxbleconn", config.maxBLEConnections));
       esp_err_t sysCommitErr = nvs_commit(nvsHandle);
       if (sysCommitErr != ESP_OK)
         printf("[CONFIG] saveConfig: nvs_commit('sys') failed: %s\n", esp_err_to_name(sysCommitErr));
