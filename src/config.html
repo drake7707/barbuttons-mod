@@ -222,6 +222,8 @@
   var TARGET_SELECT = CFG.TARGET_SELECT;
   var TARGET_HID    = CFG.TARGET_HID;
   var TARGET_BTHOME = CFG.TARGET_BTHOME;
+  var TARGET_IR_NEC = CFG.TARGET_IR_NEC;
+  var IR_MAX_REPEATS = CFG.IR_MAX_REPEATS || 3;
   var DS = CFG.defaultShort;
   var DL = CFG.defaultLong;
   var KM = CFG.km;
@@ -295,38 +297,75 @@
       h += '<option value="1:' + mac + '" selected>HID: ' + mac + ' (not bonded)</option>';
     }
     h += '<option value="' + TARGET_BTHOME + '"' + (type === TARGET_BTHOME ? ' selected' : '') + '>' + btHomeLabel + '</option>';
+    h += '<option value="' + TARGET_IR_NEC + '"' + (type === TARGET_IR_NEC ? ' selected' : '') + '>IR NEC</option>';
     return h;
   }
 
-  // Hide the key ctrl-row when BT Home is selected (no key needed)
+  // Zero-pad a number to 4 uppercase hex digits
+  function hexPad4(n) { return ('0000' + (n || 0).toString(16).toUpperCase()).slice(-4); }
+
+  // Build the IR NEC sub-fields for a press group.
+  // addrName/cmdName/repName are the form field names; vals are the current values.
+  function buildIRFields(addrName, cmdName, repName, addrVal, cmdVal, repVal) {
+    return '<span class="ctrl-lbl" style="margin-top:4px">IR addr (hex)</span>' +
+      '<input type="text" name="' + addrName + '" value="' + hexPad4(addrVal) + '" maxlength="4"' +
+      ' pattern="[0-9A-Fa-f]{1,4}" style="max-width:90px" placeholder="e.g. DF20">' +
+      '<span class="ctrl-lbl" style="margin-top:4px">IR cmd (hex)</span>' +
+      '<input type="text" name="' + cmdName + '" value="' + hexPad4(cmdVal) + '" maxlength="4"' +
+      ' pattern="[0-9A-Fa-f]{1,4}" style="max-width:90px" placeholder="e.g. F30C">' +
+      '<span class="ctrl-lbl" style="margin-top:4px">Repeats (1&#8211;' + IR_MAX_REPEATS + ')</span>' +
+      '<input type="number" name="' + repName + '" value="' + (repVal || 1) + '"' +
+      ' min="1" max="' + IR_MAX_REPEATS + '" style="max-width:70px">';
+  }
+
+  // Hide/show key row and IR fields depending on selected target type
   function onTgtChange(sel) {
-    var kid = sel.getAttribute('data-key');
+    var kid  = sel.getAttribute('data-key');
+    var irid = sel.getAttribute('data-ir');
+    var isIR     = parseInt(sel.value, 10) === TARGET_IR_NEC;
+    var isBTHome = parseInt(sel.value, 10) === TARGET_BTHOME;
     if (kid) {
       var row = document.getElementById(kid);
-      if (row) row.style.display = sel.value === String(TARGET_BTHOME) ? 'none' : '';
+      if (row) row.style.display = (isIR || isBTHome) ? 'none' : '';
+    }
+    if (irid) {
+      var irDiv = document.getElementById(irid);
+      if (irDiv) irDiv.style.display = isIR ? '' : 'none';
     }
   }
 
   // Build button cards for all 3 keymap panels
   for (var km = 1; km <= 3; km++) {
     var container = document.getElementById('rows' + km);
-    var S  = KM[km-1].S,  L  = KM[km-1].L;
-    var ST = KM[km-1].ST, SM = KM[km-1].SM;
-    var LT = KM[km-1].LT, LM = KM[km-1].LM;
+    var S   = KM[km-1].S,   L   = KM[km-1].L;
+    var ST  = KM[km-1].ST,  SM  = KM[km-1].SM;
+    var LT  = KM[km-1].LT,  LM  = KM[km-1].LM;
+    var SIA = KM[km-1].SIA, LIA = KM[km-1].LIA;
+    var SIC = KM[km-1].SIC, LIC = KM[km-1].LIC;
+    var SIR = KM[km-1].SIR, LIR = KM[km-1].LIR;
 
     for (var i = 0; i < 8; i++) {
+      var isIRShort = (ST[i] === TARGET_IR_NEC);
+      var isIRLong  = (LT[i] === TARGET_IR_NEC);
+
       // Short press section
-      var ksCid = 'crs_' + km + '_' + i;
+      var ksCid  = 'crs_' + km + '_' + i;
+      var irSId  = 'irs_' + km + '_' + i;
+      var hideKeyS = (ST[i] === TARGET_BTHOME || isIRShort);
       var shortHtml =
         '<div class="press-grp">' +
         '<div class="press-lbl">Short Press</div>' +
-        '<div class="ctrl-row"' + (ST[i] === TARGET_BTHOME ? ' style="display:none"' : '') + ' id="' + ksCid + '">' +
+        '<div class="ctrl-row"' + (hideKeyS ? ' style="display:none"' : '') + ' id="' + ksCid + '">' +
           '<span class="ctrl-lbl">Key</span>' +
           '<select name="s' + km + '_' + i + '">' + buildOpts(S[i], false) + '</select>' +
         '</div>' +
         '<div class="ctrl-row">' +
           '<span class="ctrl-lbl">Target</span>' +
-          '<select name="ts' + km + '_' + i + '" data-key="' + ksCid + '" onchange="onTgtChange(this)">' + buildTargetOpts(ST[i], SM[i], i + 1) + '</select>' +
+          '<select name="ts' + km + '_' + i + '" data-key="' + ksCid + '" data-ir="' + irSId + '" onchange="onTgtChange(this)">' + buildTargetOpts(ST[i], SM[i], i + 1) + '</select>' +
+        '</div>' +
+        '<div class="ctrl-row ir-fields" id="' + irSId + '"' + (isIRShort ? '' : ' style="display:none"') + '>' +
+          buildIRFields('tsia' + km + '_' + i, 'tsic' + km + '_' + i, 'tsir' + km + '_' + i,
+                        SIA ? SIA[i] : 0, SIC ? SIC[i] : 0, SIR ? SIR[i] : 1) +
         '</div>' +
         '</div>';
 
@@ -343,16 +382,22 @@
           '</div>';
       } else {
         var klCid = 'crl_' + km + '_' + i;
+        var irLId = 'irl_' + km + '_' + i;
+        var hideKeyL = (LT[i] === TARGET_BTHOME || isIRLong);
         longHtml =
           '<div class="press-grp">' +
           '<div class="press-lbl">Long Press</div>' +
-          '<div class="ctrl-row"' + (LT[i] === TARGET_BTHOME ? ' style="display:none"' : '') + ' id="' + klCid + '">' +
+          '<div class="ctrl-row"' + (hideKeyL ? ' style="display:none"' : '') + ' id="' + klCid + '">' +
             '<span class="ctrl-lbl">Key</span>' +
             '<select name="l' + km + '_' + i + '">' + buildOpts(L[i], true) + '</select>' +
           '</div>' +
           '<div class="ctrl-row">' +
             '<span class="ctrl-lbl">Target</span>' +
-            '<select name="tl' + km + '_' + i + '" data-key="' + klCid + '" onchange="onTgtChange(this)">' + buildTargetOpts(LT[i], LM[i], i + 1) + '</select>' +
+            '<select name="tl' + km + '_' + i + '" data-key="' + klCid + '" data-ir="' + irLId + '" onchange="onTgtChange(this)">' + buildTargetOpts(LT[i], LM[i], i + 1) + '</select>' +
+          '</div>' +
+          '<div class="ctrl-row ir-fields" id="' + irLId + '"' + (isIRLong ? '' : ' style="display:none"') + '>' +
+            buildIRFields('tlia' + km + '_' + i, 'tlic' + km + '_' + i, 'tlir' + km + '_' + i,
+                          LIA ? LIA[i] : 0, LIC ? LIC[i] : 0, LIR ? LIR[i] : 1) +
           '</div>' +
           '</div>';
       }
@@ -379,13 +424,14 @@
   // Button combos
   // ---------------------------------------------------------------------------
   var MAX_COMBOS = CFG.maxCombos || 16;
-  // combos[0..2] = array of {h, p, k, t, m} for keymaps 1-3
+  // combos[0..2] = array of {h, p, k, t, m, ia, ic, ir} for keymaps 1-3
   var combos = [[], [], []];
   if (CFG.combos) {
     for (var km = 0; km < 3; km++) {
       if (Array.isArray(CFG.combos[km])) {
         combos[km] = CFG.combos[km].map(function(c) {
-          return {h: c.h, p: c.p, k: c.k, t: c.t, m: c.m || ''};
+          return {h: c.h, p: c.p, k: c.k, t: c.t, m: c.m || '',
+                  ia: c.ia || 0, ic: c.ic || 0, ir: c.ir || 1};
         });
       }
     }
@@ -402,6 +448,7 @@
   function tgtShortLabel(t, m, btnNum) {
     if (t === TARGET_BTHOME) return 'BT\u00a0Home' + (btnNum ? '\u00a0btn\u00a0' + btnNum : '');
     if (t === TARGET_HID)    return m ? 'HID:\u00a0' + m : 'HID:\u00a0All';
+    if (t === TARGET_IR_NEC) return 'IR\u00a0NEC';
     return 'Selector';
   }
 
@@ -416,7 +463,10 @@
       for (var j = 0; j < arr.length; j++) {
         var c = arr[j];
         var pressedBtnNum = c.p - 48;
-        var action = (c.t === TARGET_BTHOME) ? 'BT\u00a0Home' : keyName(c.k);
+        var action;
+        if (c.t === TARGET_BTHOME)  action = 'BT\u00a0Home';
+        else if (c.t === TARGET_IR_NEC) action = 'IR\u00a0NEC\u00a00x' + hexPad4(c.ia) + ':0x' + hexPad4(c.ic);
+        else action = keyName(c.k);
         html += '<div class="combo-item">' +
           '<span class="combo-item-desc">' +
           '<strong>Hold</strong> ' + btnName(c.h) + ' + <strong>Press</strong> ' + btnName(c.p) +
@@ -450,18 +500,25 @@
       }
     }
 
-    var tgtType, mac = '';
+    var tgtType, mac = '', irAddr = 0, irCmd = 0, irRep = 1;
     if (tgtVal.charAt(0) === '1') {
       tgtType = TARGET_HID;
       mac = tgtVal.length > 2 ? tgtVal.substring(2) : '';
     } else if (tgtVal === String(TARGET_BTHOME)) {
       tgtType = TARGET_BTHOME;
+    } else if (tgtVal === String(TARGET_IR_NEC)) {
+      tgtType = TARGET_IR_NEC;
+      irAddr = parseInt(document.getElementById('newComboIRAddr' + km).value || '0', 16) || 0;
+      irCmd  = parseInt(document.getElementById('newComboIRCmd'  + km).value || '0', 16) || 0;
+      irRep  = parseInt(document.getElementById('newComboIRRep'  + km).value || '1', 10) || 1;
+      if (irRep < 1) irRep = 1;
+      if (irRep > IR_MAX_REPEATS) irRep = IR_MAX_REPEATS;
     } else {
       tgtType = TARGET_SELECT;
     }
 
-    if (tgtType !== TARGET_BTHOME && !key) {
-      alert('Please select a key action (or choose BT Home as target).');
+    if (tgtType !== TARGET_BTHOME && tgtType !== TARGET_IR_NEC && !key) {
+      alert('Please select a key action (or choose BT Home or IR NEC as target).');
       return;
     }
 
@@ -470,7 +527,8 @@
       return;
     }
 
-    combos[km - 1].push({h: heldCode, p: pressedCode, k: key, t: tgtType, m: mac});
+    combos[km - 1].push({h: heldCode, p: pressedCode, k: key, t: tgtType, m: mac,
+                         ia: irAddr, ic: irCmd, ir: irRep});
     renderCombos(km);
     // Collapse the add form after a successful add
     var addDiv = document.getElementById('comboAddPane' + km);
@@ -534,6 +592,7 @@
       var panel      = document.getElementById('km' + km);
       var keyRowId   = 'newComboKeyRow' + km;
       var tgtSelId   = 'newComboTgt'    + km;
+      var irPaneId   = 'comboIRPane'    + km;
       var addPaneId  = 'comboAddPane'   + km;
       var kmCopy     = km; // capture for closure
 
@@ -556,8 +615,11 @@
             '<select id="newComboKey' + km + '"><option value="0">-- select --</option>' +
             buildOpts(0, false) + '</select></div>' +
             '<div><span class="ctrl-lbl">Target</span>' +
-            '<select id="' + tgtSelId + '" data-key="' + keyRowId + '" onchange="onTgtChange(this)">' +
+            '<select id="' + tgtSelId + '" data-key="' + keyRowId + '" data-ir="' + irPaneId + '" onchange="onTgtChange(this);updateComboTgtBtHomeLabel(' + km + ')">' +
             buildTargetOpts(TARGET_SELECT, '', 2) + '</select></div>' +
+          '</div>' +
+          '<div class="ctrl-row ir-fields" id="' + irPaneId + '" style="display:none">' +
+            buildIRFields('newComboIRAddr' + km, 'newComboIRCmd' + km, 'newComboIRRep' + km, 0, 0, 1) +
           '</div>' +
           '<div class="combo-add-actions">' +
             '<button type="button" class="btn btn-blue" onclick="addCombo(' + km + ')">&#10003; Confirm</button>' +
@@ -589,9 +651,17 @@
         addHidden('ch_' + km + '_' + j, c.h);
         addHidden('cp_' + km + '_' + j, c.p);
         addHidden('ck_' + km + '_' + j, c.k);
-        var tStr = (c.t === TARGET_HID) ? '1:' + c.m :
-                   (c.t === TARGET_BTHOME) ? String(TARGET_BTHOME) : '0';
+        var tStr;
+        if      (c.t === TARGET_HID)    tStr = '1:' + c.m;
+        else if (c.t === TARGET_BTHOME) tStr = String(TARGET_BTHOME);
+        else if (c.t === TARGET_IR_NEC) tStr = String(TARGET_IR_NEC);
+        else                            tStr = '0';
         addHidden('ct_' + km + '_' + j, tStr);
+        if (c.t === TARGET_IR_NEC) {
+          addHidden('ctia_' + km + '_' + j, hexPad4(c.ia));
+          addHidden('ctic_' + km + '_' + j, hexPad4(c.ic));
+          addHidden('ctir_' + km + '_' + j, c.ir || 1);
+        }
       }
     }
   });

@@ -39,3 +39,7 @@ inline const uint8_t* getKeypadRowPins(bool isLegacy) {
 // Voltage is read through a 680 kΩ / 220 kΩ voltage divider so that the
 // li-ion cell voltage (up to 4.2 V) is scaled down to the ADC input range.
 const adc_channel_t ADC_BATTERY_CHANNEL = ADC_CHANNEL_0; // GPIO0 → ADC1 CH0 on ESP32-C3
+
+// IR transmitter LED (driven via BJT for ~200 mA peak current; short pulses only).
+// GPIO10 is free on the ESP32-C3 Zero when using the standard pin layout.
+const int IR_LED_PIN = 10;

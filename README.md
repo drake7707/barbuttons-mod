@@ -16,12 +16,13 @@ Based on the original [BarButtons](https://jaxeadv.com/barbuttons) v1 firmware, 
 |---|---|
 | **AP config mode** | Starts a WiFi AP (`RemoteButtons-Config` / `remotebuttons`) on demand |
 | **Web keymap editor** | Configure Short Press and Long Press action (key + BLE target) for all 8 buttons across 3 keymap slots |
-| **Per-key BLE target** | Each button press can target: *use target selector*, *broadcast to all HID peers*, *a specific bonded HID peer*, or *BT Home advertisement* |
+| **Per-key BLE target** | Each button press can target: *use target selector*, *broadcast to all HID peers*, *a specific bonded HID peer*, *BT Home advertisement*, or *IR NEC transmit* |
 | **Multiple keymaps** | Three independent keymap slots switchable on-device via Button 4 combos; active slot persisted across reboots |
 | **NVS persistence** | All settings (keymaps, active slot, BLE name, battery/power flags) stored in ESP-IDF NVS flash; survive reboots and OTA updates |
 | **OTA firmware update** | Upload a compiled `.bin` directly from the browser; device reboots automatically |
 | **NimBLE BLE keyboard** | HID keyboard over BLE with secure bonding (Secure Connections, Just Works); CCCD state persisted per peer |
-| **BTHome support** | Send button presses to your Home Assistant 
+| **BTHome support** | Send button presses to your Home Assistant |
+| **IR NEC transmitter** | Send infrared NEC commands (16-bit address + 16-bit command, up to 3 frames per press) via an IR LED driven through a BJT |
 | **Multi-connection** | Up to 3 simultaneous BLE HID connections; cycle active target or broadcast to all with button combos |
 | **LED status indicator** | Blink pattern varies by state — see table below |
 | **Battery measurement** | Reads cell voltage via voltage divider (680 kΩ : 220 kΩ), reports percentage over BLE, and displays current voltage & percentage in the web config UI |
@@ -92,6 +93,21 @@ Targets are sorted on their MAC address so if 2 devices are connected, this firs
 
 Each button mapping can also have its own fixed target (set in the web config UI), overriding the runtime target selector for that specific key.
 
+#### Target types
+
+| Target | Description |
+|---|---|
+| Use target selector | Uses the runtime-selected output (cycled with Button 4 + Button 5 combo) |
+| HID: Broadcast to all | Sends a HID keystroke to every connected BLE peer |
+| HID: `<mac>` | Sends a HID keystroke to a specific bonded peer |
+| BT Home broadcast | Sends a BTHome advertisement event (no BLE HID connection required) |
+| **IR NEC** | Transmits a NEC infrared command (16-bit address + 16-bit command) via `IR_LED_PIN`; the key field is ignored |
+
+When **IR NEC** is selected as target the web UI shows three extra fields:
+- **IR addr** — 16-bit device address in hex (e.g. `DF20`)
+- **IR cmd** — 16-bit command code in hex (e.g. `F30C`)
+- **Repeats** — number of full NEC frames to emit (1–3; default 1)
+
 ### Application state diagram
 
 ```mermaid
@@ -139,8 +155,11 @@ Any other key code sends that key exactly once on long press.
 | Row 2 | 0 | 6 |
 | Col 0 | 3 | 3 |
 | Col 1 | 4 | 4 |
-| Col 2 | 5 | 5 | 
+| Col 2 | 5 | 5 |
 | Battery voltage divider | - | 0 |
+| **IR LED** (`IR_LED_PIN`) | - | **10** |
+
+> **IR LED wiring:** connect a BJT base-drive circuit between GPIO 10 and the IR LED cathode so that ~200 mA peak current can flow during NEC bursts. The firmware automatically caps transmissions to `IR_MAX_REPEATS` (3) full frames per button press to prevent overheating. `IR_LED_PIN` is defined in `src/HardwareConfig.h` and can be changed to any available GPIO.
 
 Unfortunately ADC1 only works with GPIO0-5 so I had to remap the pins. The legacy version is for devices with the original pin layout, the default is with the new pin layout and this time I checked the pin functions thoroughly.
 

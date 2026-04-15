@@ -207,6 +207,8 @@ void WebUIConfigManager::_handleRoot(httpd_req_t *req)
   cJSON_AddNumberToObject(root, "TARGET_SELECT", TARGET_SELECT);
   cJSON_AddNumberToObject(root, "TARGET_HID",    TARGET_HID);
   cJSON_AddNumberToObject(root, "TARGET_BTHOME", TARGET_BTHOME);
+  cJSON_AddNumberToObject(root, "TARGET_IR_NEC", TARGET_IR_NEC);
+  cJSON_AddNumberToObject(root, "IR_MAX_REPEATS", IR_MAX_REPEATS);
 
   cJSON *defaultShortArr = cJSON_CreateArray();
   cJSON *defaultLongArr  = cJSON_CreateArray();
@@ -230,6 +232,9 @@ void WebUIConfigManager::_handleRoot(httpd_req_t *req)
     cJSON *shortKeys   = cJSON_CreateArray(), *longKeys    = cJSON_CreateArray();
     cJSON *shortTargets = cJSON_CreateArray(), *longTargets = cJSON_CreateArray();
     cJSON *shortMacs   = cJSON_CreateArray(), *longMacs    = cJSON_CreateArray();
+    cJSON *shortIRAddr  = cJSON_CreateArray(), *longIRAddr  = cJSON_CreateArray();
+    cJSON *shortIRCmd   = cJSON_CreateArray(), *longIRCmd   = cJSON_CreateArray();
+    cJSON *shortIRRep   = cJSON_CreateArray(), *longIRRep   = cJSON_CreateArray();
     for (int i = 0; i < 8; i++)
     {
       const KeyEntry &shortEntry = _configManager->rawShortEntry(keymap, i);
@@ -240,13 +245,25 @@ void WebUIConfigManager::_handleRoot(httpd_req_t *req)
       cJSON_AddItemToArray(longTargets,  cJSON_CreateNumber((uint8_t)longEntry.target));
       cJSON_AddItemToArray(shortMacs,    cJSON_CreateString(shortEntry.mac));
       cJSON_AddItemToArray(longMacs,     cJSON_CreateString(longEntry.mac));
+      cJSON_AddItemToArray(shortIRAddr,  cJSON_CreateNumber(shortEntry.irAddress));
+      cJSON_AddItemToArray(longIRAddr,   cJSON_CreateNumber(longEntry.irAddress));
+      cJSON_AddItemToArray(shortIRCmd,   cJSON_CreateNumber(shortEntry.irCommand));
+      cJSON_AddItemToArray(longIRCmd,    cJSON_CreateNumber(longEntry.irCommand));
+      cJSON_AddItemToArray(shortIRRep,   cJSON_CreateNumber(shortEntry.irRepeats));
+      cJSON_AddItemToArray(longIRRep,    cJSON_CreateNumber(longEntry.irRepeats));
     }
-    cJSON_AddItemToObject(keymapObj, "S",  shortKeys);
-    cJSON_AddItemToObject(keymapObj, "L",  longKeys);
-    cJSON_AddItemToObject(keymapObj, "ST", shortTargets);
-    cJSON_AddItemToObject(keymapObj, "LT", longTargets);
-    cJSON_AddItemToObject(keymapObj, "SM", shortMacs);
-    cJSON_AddItemToObject(keymapObj, "LM", longMacs);
+    cJSON_AddItemToObject(keymapObj, "S",   shortKeys);
+    cJSON_AddItemToObject(keymapObj, "L",   longKeys);
+    cJSON_AddItemToObject(keymapObj, "ST",  shortTargets);
+    cJSON_AddItemToObject(keymapObj, "LT",  longTargets);
+    cJSON_AddItemToObject(keymapObj, "SM",  shortMacs);
+    cJSON_AddItemToObject(keymapObj, "LM",  longMacs);
+    cJSON_AddItemToObject(keymapObj, "SIA", shortIRAddr);
+    cJSON_AddItemToObject(keymapObj, "LIA", longIRAddr);
+    cJSON_AddItemToObject(keymapObj, "SIC", shortIRCmd);
+    cJSON_AddItemToObject(keymapObj, "LIC", longIRCmd);
+    cJSON_AddItemToObject(keymapObj, "SIR", shortIRRep);
+    cJSON_AddItemToObject(keymapObj, "LIR", longIRRep);
     cJSON_AddItemToArray(keymapArr, keymapObj);
   }
   cJSON_AddItemToObject(root, "km", keymapArr);
@@ -261,11 +278,14 @@ void WebUIConfigManager::_handleRoot(httpd_req_t *req)
     {
       const ComboEntry &c = _configManager->getComboEntry(keymap, j);
       cJSON *comboObj = cJSON_CreateObject();
-      cJSON_AddNumberToObject(comboObj, "h", (uint8_t)c.held);
-      cJSON_AddNumberToObject(comboObj, "p", (uint8_t)c.pressed);
-      cJSON_AddNumberToObject(comboObj, "k", c.key);
-      cJSON_AddNumberToObject(comboObj, "t", (uint8_t)c.target);
-      cJSON_AddStringToObject(comboObj, "m", c.mac);
+      cJSON_AddNumberToObject(comboObj, "h",  (uint8_t)c.held);
+      cJSON_AddNumberToObject(comboObj, "p",  (uint8_t)c.pressed);
+      cJSON_AddNumberToObject(comboObj, "k",  c.key);
+      cJSON_AddNumberToObject(comboObj, "t",  (uint8_t)c.target);
+      cJSON_AddStringToObject(comboObj, "m",  c.mac);
+      cJSON_AddNumberToObject(comboObj, "ia", c.irAddress);
+      cJSON_AddNumberToObject(comboObj, "ic", c.irCommand);
+      cJSON_AddNumberToObject(comboObj, "ir", c.irRepeats);
       cJSON_AddItemToArray(combosArr, comboObj);
     }
     cJSON_AddItemToArray(combosAllArr, combosArr);
@@ -307,7 +327,7 @@ void WebUIConfigManager::_handleSave(httpd_req_t *req)
       if (!longVal.empty())
         _configManager->rawLongEntry(keymap, i).key  = (uint8_t)atoi(longVal.c_str());
 
-      // Short press target: "0"=select, "1[:<mac>]"=HID, "2"=BTHome
+      // Short press target: "0"=select, "1[:<mac>]"=HID, "2"=BTHome, "3"=IR NEC
       std::string shortTargetVal = _formParam(body.c_str(), (std::string("ts") + slotKey).c_str());
       if (!shortTargetVal.empty())
       {
@@ -321,13 +341,27 @@ void WebUIConfigManager::_handleSave(httpd_req_t *req)
         }
         else if (shortTargetVal[0] == '2')
         {
-          shortEntry.target    = TARGET_BTHOME;
-          shortEntry.mac[0]    = '\0';
+          shortEntry.target = TARGET_BTHOME;
+          shortEntry.mac[0] = '\0';
+        }
+        else if (shortTargetVal[0] == '3')
+        {
+          shortEntry.target = TARGET_IR_NEC;
+          shortEntry.mac[0] = '\0';
+          std::string addrStr = _formParam(body.c_str(), (std::string("tsia") + slotKey).c_str());
+          std::string cmdStr  = _formParam(body.c_str(), (std::string("tsic") + slotKey).c_str());
+          std::string repStr  = _formParam(body.c_str(), (std::string("tsir") + slotKey).c_str());
+          shortEntry.irAddress = addrStr.empty() ? 0 : (uint16_t)strtoul(addrStr.c_str(), nullptr, 16);
+          shortEntry.irCommand = cmdStr.empty()  ? 0 : (uint16_t)strtoul(cmdStr.c_str(),  nullptr, 16);
+          int rep = repStr.empty() ? 1 : atoi(repStr.c_str());
+          if (rep < 1) rep = 1;
+          if (rep > IR_MAX_REPEATS) rep = IR_MAX_REPEATS;
+          shortEntry.irRepeats = (uint8_t)rep;
         }
         else
         {
-          shortEntry.target    = TARGET_SELECT;
-          shortEntry.mac[0]    = '\0';
+          shortEntry.target = TARGET_SELECT;
+          shortEntry.mac[0] = '\0';
         }
       }
 
@@ -345,13 +379,27 @@ void WebUIConfigManager::_handleSave(httpd_req_t *req)
         }
         else if (longTargetVal[0] == '2')
         {
-          longEntry.target  = TARGET_BTHOME;
-          longEntry.mac[0]  = '\0';
+          longEntry.target = TARGET_BTHOME;
+          longEntry.mac[0] = '\0';
+        }
+        else if (longTargetVal[0] == '3')
+        {
+          longEntry.target = TARGET_IR_NEC;
+          longEntry.mac[0] = '\0';
+          std::string addrStr = _formParam(body.c_str(), (std::string("tlia") + slotKey).c_str());
+          std::string cmdStr  = _formParam(body.c_str(), (std::string("tlic") + slotKey).c_str());
+          std::string repStr  = _formParam(body.c_str(), (std::string("tlir") + slotKey).c_str());
+          longEntry.irAddress = addrStr.empty() ? 0 : (uint16_t)strtoul(addrStr.c_str(), nullptr, 16);
+          longEntry.irCommand = cmdStr.empty()  ? 0 : (uint16_t)strtoul(cmdStr.c_str(),  nullptr, 16);
+          int rep = repStr.empty() ? 1 : atoi(repStr.c_str());
+          if (rep < 1) rep = 1;
+          if (rep > IR_MAX_REPEATS) rep = IR_MAX_REPEATS;
+          longEntry.irRepeats = (uint8_t)rep;
         }
         else
         {
-          longEntry.target  = TARGET_SELECT;
-          longEntry.mac[0]  = '\0';
+          longEntry.target = TARGET_SELECT;
+          longEntry.mac[0] = '\0';
         }
       }
     }
@@ -400,6 +448,24 @@ void WebUIConfigManager::_handleSave(httpd_req_t *req)
         {
           c.target = TARGET_BTHOME;
           c.mac[0] = '\0';
+        }
+        else if (v[0] == '3')
+        {
+          c.target = TARGET_IR_NEC;
+          c.mac[0] = '\0';
+          char irKey[24];
+          snprintf(irKey, sizeof(irKey), "ctia_%d_%d", keymap + 1, j);
+          std::string addrStr = _formParam(body.c_str(), irKey);
+          snprintf(irKey, sizeof(irKey), "ctic_%d_%d", keymap + 1, j);
+          std::string cmdStr = _formParam(body.c_str(), irKey);
+          snprintf(irKey, sizeof(irKey), "ctir_%d_%d", keymap + 1, j);
+          std::string repStr = _formParam(body.c_str(), irKey);
+          c.irAddress = addrStr.empty() ? 0 : (uint16_t)strtoul(addrStr.c_str(), nullptr, 16);
+          c.irCommand = cmdStr.empty()  ? 0 : (uint16_t)strtoul(cmdStr.c_str(),  nullptr, 16);
+          int rep = repStr.empty() ? 1 : atoi(repStr.c_str());
+          if (rep < 1) rep = 1;
+          if (rep > IR_MAX_REPEATS) rep = IR_MAX_REPEATS;
+          c.irRepeats = (uint8_t)rep;
         }
         else
         {

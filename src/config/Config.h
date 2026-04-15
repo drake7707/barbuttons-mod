@@ -13,27 +13,38 @@ extern const char DEFAULT_BLE_NAME[];
 enum KeyTarget : uint8_t {
   TARGET_SELECT = 0, // use the runtime target selector
   TARGET_HID    = 1, // send to a specific HID peer (or broadcast)
-  TARGET_BTHOME = 2  // broadcast a BTHome advertisement
+  TARGET_BTHOME = 2, // broadcast a BTHome advertisement
+  TARGET_IR_NEC = 3  // transmit an IR NEC command
 };
+
+// Safety limit: maximum full NEC frames emitted per button press.
+// The IR LED is driven through a BJT at up to 200 mA; long bursts risk overheating.
+static constexpr uint8_t IR_MAX_REPEATS = 3;
 
 // ---------------------------------------------------------------------------
 // One button action (short or long press)
 // ---------------------------------------------------------------------------
 struct KeyEntry {
-  uint8_t   key    = 0;
-  KeyTarget target = TARGET_SELECT;
-  char      mac[18] = {}; // HID peer MAC ("" = broadcast all)
+  uint8_t   key       = 0;
+  KeyTarget target    = TARGET_SELECT;
+  char      mac[18]   = {}; // HID peer MAC ("" = broadcast all)
+  uint16_t  irAddress = 0;  // NEC extended 16-bit address
+  uint16_t  irCommand = 0;  // NEC extended 16-bit command
+  uint8_t   irRepeats = 1;  // number of full NEC frames to emit (1..IR_MAX_REPEATS)
 };
 
 // ---------------------------------------------------------------------------
 // One button combo action (hold one button, press another)
 // ---------------------------------------------------------------------------
 struct ComboEntry {
-  char      held    = 0;   // ASCII of held button ('1'..'8'), 0 = unused
-  char      pressed = 0;   // ASCII of pressed button ('1'..'8'), 0 = unused
-  uint8_t   key     = 0;
-  KeyTarget target  = TARGET_SELECT;
-  char      mac[18] = {}; // HID peer MAC ("" = broadcast all)
+  char      held      = 0;   // ASCII of held button ('1'..'8'), 0 = unused
+  char      pressed   = 0;   // ASCII of pressed button ('1'..'8'), 0 = unused
+  uint8_t   key       = 0;
+  KeyTarget target    = TARGET_SELECT;
+  char      mac[18]   = {}; // HID peer MAC ("" = broadcast all)
+  uint16_t  irAddress = 0;
+  uint16_t  irCommand = 0;
+  uint8_t   irRepeats = 1;
 };
 
 // ---------------------------------------------------------------------------

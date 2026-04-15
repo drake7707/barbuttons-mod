@@ -48,6 +48,7 @@ const char FIRMWARE_VERSION[] = "1.5.0";
 #include "config/ConfigManager.h"
 #include "buttons/ButtonManager.h"
 #include "BatteryManager.h"
+#include "ir/IRManager.h"
 #include "main.h"
 
 // ---------------------------------------------------------------------------
@@ -58,6 +59,7 @@ BLEManager bleManager("Drakarah", 100);
 ConfigManager configManager;
 ButtonManager buttonManager;
 BatteryManager batteryManager;
+IRManager irManager;
 
 std::string currentOutputTarget = "";
 
@@ -76,13 +78,15 @@ void applyKeymap()
     }
     else
     {
-      // BT Home targets don't use key-repeat (they fire a broadcast on every
-      // press event; repeating doesn't make sense for those).
-      bool hasBTHome = (configManager.getShortEntry(i).target == TARGET_BTHOME ||
-                        configManager.getLongEntry(i).target == TARGET_BTHOME);
+      // BT Home and IR NEC targets don't use key-repeat (they fire once per press;
+      // repeating doesn't make sense for those).
+      bool hasNonRepeat = (configManager.getShortEntry(i).target == TARGET_BTHOME ||
+                           configManager.getLongEntry(i).target  == TARGET_BTHOME ||
+                           configManager.getShortEntry(i).target == TARGET_IR_NEC  ||
+                           configManager.getLongEntry(i).target  == TARGET_IR_NEC);
       // Repeat mode when no distinct long-press action is configured (key == 0)
-      // and no BT Home target is involved.
-      buttonManager.setButtonRepeating(btn, !hasBTHome && configManager.getLongEntry(i).key == 0);
+      // and no non-repeatable target is involved.
+      buttonManager.setButtonRepeating(btn, !hasNonRepeat && configManager.getLongEntry(i).key == 0);
     }
   }
 }
@@ -251,6 +255,24 @@ void on_short_press(char btn)
     return;
   }
 
+  // IR NEC target: transmit infrared command and return.
+  if (entry.target == TARGET_IR_NEC)
+  {
+    if (DEBUG)
+      printf("[MAIN] Short press: %c -> IR NEC addr=0x%04X cmd=0x%04X x%d\n",
+             btn, entry.irAddress, entry.irCommand, entry.irRepeats);
+    if (irManager.isInitialized())
+    {
+      irManager.sendNEC(entry.irAddress, entry.irCommand, entry.irRepeats);
+      ledManager.flashButtonPressed(idx);
+    }
+    else
+    {
+      ledManager.flashButtonPressError(idx);
+    }
+    return;
+  }
+
   if (entry.key == 0)
     return;
 
@@ -307,6 +329,24 @@ void on_long_press(char btn)
     bleManager.getAdvertisingManager().broadcastBTHomeButtonPress(
         BLEAdvertisingManager::BTHOME_BUTTON_LONG_PRESS, idx + 1);
     ledManager.flashButtonPressed(idx);
+    return;
+  }
+
+  // IR NEC target: transmit infrared command and return.
+  if (entry.target == TARGET_IR_NEC)
+  {
+    if (DEBUG)
+      printf("[MAIN] Long press: %c -> IR NEC addr=0x%04X cmd=0x%04X x%d\n",
+             btn, entry.irAddress, entry.irCommand, entry.irRepeats);
+    if (irManager.isInitialized())
+    {
+      irManager.sendNEC(entry.irAddress, entry.irCommand, entry.irRepeats);
+      ledManager.flashButtonPressed(idx);
+    }
+    else
+    {
+      ledManager.flashButtonPressError(idx);
+    }
     return;
   }
 
@@ -379,6 +419,24 @@ void on_combo(char held, char pressed)
       bleManager.getAdvertisingManager().broadcastBTHomeButtonPress(
           BLEAdvertisingManager::BTHOME_BUTTON_PRESS, Config::btnIndex(pressed) + 1);
       ledManager.flashButtonPressed(Config::btnIndex(pressed));
+      return;
+    }
+
+    // IR NEC target
+    if (combo.target == TARGET_IR_NEC)
+    {
+      if (DEBUG)
+        printf("[MAIN] Combo: hold %c + press %c -> IR NEC addr=0x%04X cmd=0x%04X x%d\n",
+               held, pressed, combo.irAddress, combo.irCommand, combo.irRepeats);
+      if (irManager.isInitialized())
+      {
+        irManager.sendNEC(combo.irAddress, combo.irCommand, combo.irRepeats);
+        ledManager.flashButtonPressed(Config::btnIndex(pressed));
+      }
+      else
+      {
+        ledManager.flashButtonPressError(Config::btnIndex(pressed));
+      }
       return;
     }
 
@@ -472,6 +530,8 @@ extern "C" void app_main()
   bleManager.begin(configManager.getBleName(), configManager.allowBLEPowerSaving(), configManager.getMaxBLEConnections());
 
   ledManager.begin(getLEDPin(LEGACY));
+
+  irManager.begin((gpio_num_t)IR_LED_PIN);
 
   // If "Clear BLE Bonds" was requested from the web UI, delete stored bonds
   // now that NimBLE is initialised. The flag was written before the reboot.

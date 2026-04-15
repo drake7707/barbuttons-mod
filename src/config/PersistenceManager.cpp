@@ -31,7 +31,7 @@ void PersistenceManager::loadConfig(Config &config)
       uint8_t rawTarget = TARGET_SELECT;
       if (opened)
         nvs_get_u8(nvsHandle, nvsKey, &rawTarget);
-      if (rawTarget > TARGET_BTHOME)
+      if (rawTarget > TARGET_IR_NEC)
         rawTarget = TARGET_SELECT;
       config.shortEntries[keymap][i].target = (KeyTarget)rawTarget;
 
@@ -39,7 +39,7 @@ void PersistenceManager::loadConfig(Config &config)
       rawTarget = TARGET_SELECT;
       if (opened)
         nvs_get_u8(nvsHandle, nvsKey, &rawTarget);
-      if (rawTarget > TARGET_BTHOME)
+      if (rawTarget > TARGET_IR_NEC)
         rawTarget = TARGET_SELECT;
       config.longEntries[keymap][i].target = (KeyTarget)rawTarget;
 
@@ -58,6 +58,42 @@ void PersistenceManager::loadConfig(Config &config)
         size_t macLen = sizeof(config.longEntries[keymap][i].mac);
         nvs_get_str(nvsHandle, nvsKey, config.longEntries[keymap][i].mac, &macLen);
       }
+
+      // --- IR NEC fields (short press) ---
+      config.shortEntries[keymap][i].irAddress = 0;
+      config.shortEntries[keymap][i].irCommand = 0;
+      config.shortEntries[keymap][i].irRepeats = 1;
+      if (opened)
+      {
+        snprintf(nvsKey, sizeof(nvsKey), "sia%d", i);
+        nvs_get_u16(nvsHandle, nvsKey, &config.shortEntries[keymap][i].irAddress);
+        snprintf(nvsKey, sizeof(nvsKey), "sic%d", i);
+        nvs_get_u16(nvsHandle, nvsKey, &config.shortEntries[keymap][i].irCommand);
+        snprintf(nvsKey, sizeof(nvsKey), "sir%d", i);
+        nvs_get_u8(nvsHandle, nvsKey, &config.shortEntries[keymap][i].irRepeats);
+      }
+      if (config.shortEntries[keymap][i].irRepeats < 1)
+        config.shortEntries[keymap][i].irRepeats = 1;
+      if (config.shortEntries[keymap][i].irRepeats > IR_MAX_REPEATS)
+        config.shortEntries[keymap][i].irRepeats = IR_MAX_REPEATS;
+
+      // --- IR NEC fields (long press) ---
+      config.longEntries[keymap][i].irAddress = 0;
+      config.longEntries[keymap][i].irCommand = 0;
+      config.longEntries[keymap][i].irRepeats = 1;
+      if (opened)
+      {
+        snprintf(nvsKey, sizeof(nvsKey), "lia%d", i);
+        nvs_get_u16(nvsHandle, nvsKey, &config.longEntries[keymap][i].irAddress);
+        snprintf(nvsKey, sizeof(nvsKey), "lic%d", i);
+        nvs_get_u16(nvsHandle, nvsKey, &config.longEntries[keymap][i].irCommand);
+        snprintf(nvsKey, sizeof(nvsKey), "lir%d", i);
+        nvs_get_u8(nvsHandle, nvsKey, &config.longEntries[keymap][i].irRepeats);
+      }
+      if (config.longEntries[keymap][i].irRepeats < 1)
+        config.longEntries[keymap][i].irRepeats = 1;
+      if (config.longEntries[keymap][i].irRepeats > IR_MAX_REPEATS)
+        config.longEntries[keymap][i].irRepeats = IR_MAX_REPEATS;
     }
     if (opened)
       nvs_close(nvsHandle);
@@ -109,7 +145,7 @@ void PersistenceManager::loadConfig(Config &config)
         uint8_t rawTarget = TARGET_SELECT;
         snprintf(nvsKey, sizeof(nvsKey), "ct%d", j);
         if (opened) nvs_get_u8(nvsHandle, nvsKey, &rawTarget);
-        if (rawTarget > TARGET_BTHOME) rawTarget = TARGET_SELECT;
+        if (rawTarget > TARGET_IR_NEC) rawTarget = TARGET_SELECT;
         c.target = (KeyTarget)rawTarget;
 
         c.mac[0] = '\0';
@@ -119,6 +155,24 @@ void PersistenceManager::loadConfig(Config &config)
           size_t macLen = sizeof(c.mac);
           nvs_get_str(nvsHandle, nvsKey, c.mac, &macLen);
         }
+
+        // --- IR NEC fields (combo) ---
+        c.irAddress = 0;
+        c.irCommand = 0;
+        c.irRepeats = 1;
+        if (opened)
+        {
+          snprintf(nvsKey, sizeof(nvsKey), "cia%d", j);
+          nvs_get_u16(nvsHandle, nvsKey, &c.irAddress);
+          snprintf(nvsKey, sizeof(nvsKey), "cic%d", j);
+          nvs_get_u16(nvsHandle, nvsKey, &c.irCommand);
+          snprintf(nvsKey, sizeof(nvsKey), "cir%d", j);
+          nvs_get_u8(nvsHandle, nvsKey, &c.irRepeats);
+        }
+        if (c.irRepeats < 1)
+          c.irRepeats = 1;
+        if (c.irRepeats > IR_MAX_REPEATS)
+          c.irRepeats = IR_MAX_REPEATS;
       }
       if (opened) nvs_close(nvsHandle);
     }
@@ -207,6 +261,13 @@ void PersistenceManager::saveConfig(const Config &config)
       snprintf(nvsKey, sizeof(nvsKey), "lt%d", i); nvs_set_u8( nvsHandle, nvsKey, (uint8_t)config.longEntries[keymap][i].target);
       snprintf(nvsKey, sizeof(nvsKey), "sm%d", i); nvs_set_str(nvsHandle, nvsKey, config.shortEntries[keymap][i].mac);
       snprintf(nvsKey, sizeof(nvsKey), "lm%d", i); nvs_set_str(nvsHandle, nvsKey, config.longEntries[keymap][i].mac);
+      // IR NEC fields
+      snprintf(nvsKey, sizeof(nvsKey), "sia%d", i); nvs_set_u16(nvsHandle, nvsKey, config.shortEntries[keymap][i].irAddress);
+      snprintf(nvsKey, sizeof(nvsKey), "sic%d", i); nvs_set_u16(nvsHandle, nvsKey, config.shortEntries[keymap][i].irCommand);
+      snprintf(nvsKey, sizeof(nvsKey), "sir%d", i); nvs_set_u8( nvsHandle, nvsKey, config.shortEntries[keymap][i].irRepeats);
+      snprintf(nvsKey, sizeof(nvsKey), "lia%d", i); nvs_set_u16(nvsHandle, nvsKey, config.longEntries[keymap][i].irAddress);
+      snprintf(nvsKey, sizeof(nvsKey), "lic%d", i); nvs_set_u16(nvsHandle, nvsKey, config.longEntries[keymap][i].irCommand);
+      snprintf(nvsKey, sizeof(nvsKey), "lir%d", i); nvs_set_u8( nvsHandle, nvsKey, config.longEntries[keymap][i].irRepeats);
     }
     nvs_commit(nvsHandle);
     nvs_close(nvsHandle);
@@ -232,6 +293,10 @@ void PersistenceManager::saveConfig(const Config &config)
         snprintf(nvsKey, sizeof(nvsKey), "ck%d", j); nvs_set_u8( nvsHandle, nvsKey, c.key);
         snprintf(nvsKey, sizeof(nvsKey), "ct%d", j); nvs_set_u8( nvsHandle, nvsKey, (uint8_t)c.target);
         snprintf(nvsKey, sizeof(nvsKey), "cm%d", j); nvs_set_str(nvsHandle, nvsKey, c.mac);
+        // IR NEC fields
+        snprintf(nvsKey, sizeof(nvsKey), "cia%d", j); nvs_set_u16(nvsHandle, nvsKey, c.irAddress);
+        snprintf(nvsKey, sizeof(nvsKey), "cic%d", j); nvs_set_u16(nvsHandle, nvsKey, c.irCommand);
+        snprintf(nvsKey, sizeof(nvsKey), "cir%d", j); nvs_set_u8( nvsHandle, nvsKey, c.irRepeats);
       }
       nvs_commit(nvsHandle);
       nvs_close(nvsHandle);
