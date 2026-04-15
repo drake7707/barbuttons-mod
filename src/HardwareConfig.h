@@ -41,11 +41,11 @@ inline const uint8_t* getKeypadRowPins(bool isLegacy) {
 const adc_channel_t ADC_BATTERY_CHANNEL = ADC_CHANNEL_0; // GPIO0 → ADC1 CH0 on ESP32-C3
 
 // IR transmitter LED (driven via BJT for ~200 mA peak current; short pulses only).
-// GPIO10 is free on the ESP32-C3 Zero when using the standard pin layout.
-const int IR_LED_PIN = 10;
+// GPIO18 is free on the ESP32-C3 Zero when using the standard pin layout.
+const int IR_LED_PIN = 18;
 
 // IR receiver (TSOP38238 or similar 38 kHz demodulator).
 // The demodulator output is an active-LOW digital signal — no carrier present
 // on the GPIO side; the RMT peripheral just sees clean mark/space pulses.
-// GPIO9 is available on the ESP32-C3 Zero (adjust if your board differs).
-const int IR_RX_PIN = 9;
+// GPIO19 is available on the ESP32-C3 Zero (adjust if your board differs).
+const int IR_RX_PIN = 19; // avoid using GPIO10 for transmitting because the wled of the dev board is also connected to it.
