@@ -48,10 +48,12 @@ void WebUIConfigManager::beginConfigAP(ConfigManager *configManager,
   httpd_uri_t saveUri       = {"/save",        HTTP_POST, _s_save,       this};
   httpd_uri_t clearBondsUri = {"/clearbonds",  HTTP_POST, _s_clearbonds, this};
   httpd_uri_t updateUri     = {"/update",      HTTP_POST, _s_update,     this};
+  httpd_uri_t irLearnUri    = {"/ir-learn",    HTTP_GET,  _s_irLearn,    this};
   httpd_register_uri_handler(_server, &rootUri);
   httpd_register_uri_handler(_server, &saveUri);
   httpd_register_uri_handler(_server, &clearBondsUri);
   httpd_register_uri_handler(_server, &updateUri);
+  httpd_register_uri_handler(_server, &irLearnUri);
 }
 
 void WebUIConfigManager::endConfigAP()
@@ -181,6 +183,11 @@ esp_err_t WebUIConfigManager::_s_clearbonds(httpd_req_t *req)
 esp_err_t WebUIConfigManager::_s_update(httpd_req_t *req)
 {
   ((WebUIConfigManager *)req->user_ctx)->_handleUpdate(req);
+  return ESP_OK;
+}
+esp_err_t WebUIConfigManager::_s_irLearn(httpd_req_t *req)
+{
+  ((WebUIConfigManager *)req->user_ctx)->_handleIrLearn(req);
   return ESP_OK;
 }
 
@@ -658,5 +665,42 @@ void WebUIConfigManager::_handleUpdate(httpd_req_t *req)
   {
     vTaskDelay(pdMS_TO_TICKS(500));
     esp_restart();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /ir-learn — arm the IR receiver, wait up to 5 s for a NEC frame, and
+// return a JSON object:
+//   {"ok":true,  "address":"DF20","command":"F30C"}  on success
+//   {"ok":false, "reason":"timeout"}                  on timeout
+//   {"ok":false, "reason":"no_rx"}                    when no RX hardware
+// ---------------------------------------------------------------------------
+void WebUIConfigManager::_handleIrLearn(httpd_req_t *req)
+{
+  httpd_resp_set_type(req, "application/json");
+  // Allow the browser to call this endpoint directly without CORS issues while
+  // connected to the device's own AP.
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+  if (!_irManager || !_irManager->isRxInitialized())
+  {
+    httpd_resp_sendstr(req, "{\"ok\":false,\"reason\":\"no_rx\"}");
+    return;
+  }
+
+  uint16_t address = 0, command = 0;
+  const bool ok = _irManager->learnNEC(address, command, 5000);
+
+  if (ok)
+  {
+    char buf[64];
+    snprintf(buf, sizeof(buf),
+             "{\"ok\":true,\"address\":\"%04X\",\"command\":\"%04X\"}",
+             (unsigned)address, (unsigned)command);
+    httpd_resp_sendstr(req, buf);
+  }
+  else
+  {
+    httpd_resp_sendstr(req, "{\"ok\":false,\"reason\":\"timeout\"}");
   }
 }

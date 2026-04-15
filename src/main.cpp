@@ -532,6 +532,8 @@ extern "C" void app_main()
   ledManager.begin(getLEDPin(LEGACY));
 
   irManager.begin((gpio_num_t)IR_LED_PIN);
+  irManager.beginRx((gpio_num_t)IR_RX_PIN);
+  configManager.setIRManager(&irManager);
 
   // If "Clear BLE Bonds" was requested from the web UI, delete stored bonds
   // now that NimBLE is initialised. The flag was written before the reboot.

@@ -94,6 +94,13 @@
     @media(min-width:520px){.combo-add-row{grid-template-columns:repeat(4,1fr)}}
     .combo-empty{font-size:.82rem;color:#94a3b8;font-style:italic;padding:6px 0;text-align:center}
     .combo-add-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    /* IR learn record button */
+    .btn-record{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fef2f2;color:#dc2626;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;line-height:1;margin-top:6px}
+    .btn-record:hover:not(:disabled){background:#fee2e2;border-color:#f87171}
+    .btn-record:disabled{opacity:.6;cursor:not-allowed}
+    .btn-record.listening{background:#eff6ff;border-color:#93c5fd;color:#2563eb}
+    .btn-record.ok{background:#f0fdf4;border-color:#86efac;color:#16a34a}
+    .btn-record.err{background:#fef2f2;border-color:#fca5a5;color:#dc2626}
   </style>
 </head>
 <body>
@@ -306,16 +313,57 @@
 
   // Build the IR NEC sub-fields for a press group.
   // addrName/cmdName/repName are the form field names; vals are the current values.
-  function buildIRFields(addrName, cmdName, repName, addrVal, cmdVal, repVal) {
+  // idPfx is an optional prefix used to give the addr/cmd inputs unique IDs for
+  // the record button; if omitted the inputs have no id.
+  function buildIRFields(addrName, cmdName, repName, addrVal, cmdVal, repVal, idPfx) {
+    var addrId = idPfx ? ' id="' + idPfx + '_a"' : '';
+    var cmdId  = idPfx ? ' id="' + idPfx + '_c"' : '';
+    var btnId  = idPfx ? ' id="' + idPfx + '_rb"' : '';
+    var onclk  = idPfx ? ' onclick="learnIR(\'' + idPfx + '_a\',\'' + idPfx + '_c\',\'' + idPfx + '_rb\')"' : '';
     return '<span class="ctrl-lbl" style="margin-top:4px">IR addr (hex)</span>' +
-      '<input type="text" name="' + addrName + '" value="' + hexPad4(addrVal) + '" maxlength="4"' +
+      '<input type="text" name="' + addrName + '"' + addrId + ' value="' + hexPad4(addrVal) + '" maxlength="4"' +
       ' pattern="[0-9A-Fa-f]{1,4}" style="max-width:90px" placeholder="e.g. DF20">' +
       '<span class="ctrl-lbl" style="margin-top:4px">IR cmd (hex)</span>' +
-      '<input type="text" name="' + cmdName + '" value="' + hexPad4(cmdVal) + '" maxlength="4"' +
+      '<input type="text" name="' + cmdName + '"' + cmdId + ' value="' + hexPad4(cmdVal) + '" maxlength="4"' +
       ' pattern="[0-9A-Fa-f]{1,4}" style="max-width:90px" placeholder="e.g. F30C">' +
       '<span class="ctrl-lbl" style="margin-top:4px">Repeats (1&#8211;' + IR_MAX_REPEATS + ')</span>' +
       '<input type="number" name="' + repName + '" value="' + (repVal || 1) + '"' +
-      ' min="1" max="' + IR_MAX_REPEATS + '" style="max-width:70px">';
+      ' min="1" max="' + IR_MAX_REPEATS + '" style="max-width:70px">' +
+      (idPfx ? '<button type="button" class="btn-record"' + btnId + onclk + '>&#128308; Record</button>' : '');
+  }
+
+  // Arm the IR receiver via /ir-learn and populate the addr/cmd fields on success.
+  function learnIR(addrId, cmdId, btnId) {
+    var btn = document.getElementById(btnId);
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    btn.className = 'btn-record listening';
+    btn.textContent = '\uD83D\uDCE1 Listening\u2026';
+    var ctrl = new AbortController();
+    var timer = setTimeout(function() { ctrl.abort(); }, 6500);
+    fetch('/ir-learn', { signal: ctrl.signal })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        clearTimeout(timer);
+        if (d.ok) {
+          var addrEl = document.getElementById(addrId);
+          var cmdEl  = document.getElementById(cmdId);
+          if (addrEl) addrEl.value = d.address;
+          if (cmdEl)  cmdEl.value  = d.command;
+          btn.className = 'btn-record ok';
+          btn.textContent = '\u2713 Captured';
+        } else {
+          btn.className = 'btn-record err';
+          btn.textContent = '\u2717 No signal';
+        }
+        setTimeout(function() { btn.className = 'btn-record'; btn.textContent = '\u{1F534} Record'; btn.disabled = false; }, 2500);
+      })
+      .catch(function() {
+        clearTimeout(timer);
+        btn.className = 'btn-record err';
+        btn.textContent = '\u2717 No signal';
+        setTimeout(function() { btn.className = 'btn-record'; btn.textContent = '\u{1F534} Record'; btn.disabled = false; }, 2500);
+      });
   }
 
   // Hide/show key row and IR fields depending on selected target type
@@ -365,7 +413,8 @@
         '</div>' +
         '<div class="ctrl-row ir-fields" id="' + irSId + '"' + (isIRShort ? '' : ' style="display:none"') + '>' +
           buildIRFields('tsia' + km + '_' + i, 'tsic' + km + '_' + i, 'tsir' + km + '_' + i,
-                        SIA ? SIA[i] : 0, SIC ? SIC[i] : 0, SIR ? SIR[i] : 1) +
+                        SIA ? SIA[i] : 0, SIC ? SIC[i] : 0, SIR ? SIR[i] : 1,
+                        'irfs_' + km + '_' + i) +
         '</div>' +
         '</div>';
 
@@ -397,7 +446,8 @@
           '</div>' +
           '<div class="ctrl-row ir-fields" id="' + irLId + '"' + (isIRLong ? '' : ' style="display:none"') + '>' +
             buildIRFields('tlia' + km + '_' + i, 'tlic' + km + '_' + i, 'tlir' + km + '_' + i,
-                          LIA ? LIA[i] : 0, LIC ? LIC[i] : 0, LIR ? LIR[i] : 1) +
+                          LIA ? LIA[i] : 0, LIC ? LIC[i] : 0, LIR ? LIR[i] : 1,
+                          'irfl_' + km + '_' + i) +
           '</div>' +
           '</div>';
       }
@@ -619,7 +669,8 @@
             buildTargetOpts(TARGET_SELECT, '', 2) + '</select></div>' +
           '</div>' +
           '<div class="ctrl-row ir-fields" id="' + irPaneId + '" style="display:none">' +
-            buildIRFields('newComboIRAddr' + km, 'newComboIRCmd' + km, 'newComboIRRep' + km, 0, 0, 1) +
+            buildIRFields('newComboIRAddr' + km, 'newComboIRCmd' + km, 'newComboIRRep' + km, 0, 0, 1,
+                          'irfc_' + km) +
           '</div>' +
           '<div class="combo-add-actions">' +
             '<button type="button" class="btn btn-blue" onclick="addCombo(' + km + ')">&#10003; Confirm</button>' +

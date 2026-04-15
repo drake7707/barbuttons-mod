@@ -5,6 +5,7 @@
 #include "config/Config.h"
 #include "config/PersistenceManager.h"
 #include "config/WebUIConfigManager.h"
+#include "ir/IRManager.h"
 
 // ---------------------------------------------------------------------------
 // ConfigManager -- owns the live Config state and ties PersistenceManager
@@ -81,6 +82,7 @@ public:
   void endConfigAP()            { _webUI.endConfigAP(); }
   bool isExitRequested() const  { return _webUI.isExitRequested(); }
   void setExitRequested(bool requested) { _webUI.setExitRequested(requested); }
+  void setIRManager(IRManager *mgr)     { _webUI.setIRManager(mgr); }
 
 private:
   Config             _config;
